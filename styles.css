@@ -1,7 +1,7 @@
  :root {
             color-scheme: light dark; /* Enables both modes */
-            --text-color: light-dark(#333, #fff); /* Light mode color, Dark mode color */
-            --background-color: light-dark(#fff, #222);
+            --text-color: light-dark(#000000, #ffffff); /* Light mode color, Dark mode color */
+            --background-color: light-dark(#ffffff, #000000);
         }
         body {
             color: var(--text-color);

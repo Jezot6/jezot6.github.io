@@ -2,96 +2,9 @@
 <html>
 <head>
 <title>Page Title</title>
+<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-<script>
-const db = [['a','̂'],['e','̈'],['i','̍'],['o','̊'],['u','̆'],['y','̒']];
-const da = [['a','̬'],['e','̤'],['i','̩'],['o','̥'],['u','̯'],['y','̦']];
-const dn = db.length;
-function isVowel(l) {
-    return ['a','e','i','o','u','y'].includes(l);
-}
-function transformInput(input) {
-    if (input.length >= 2) {
-        if (isVowel(input[0]) && isVowel(input[1]) || isVowel(input[input.length-2]) && isVowel(input[input.length-1])) {
-            throw new Error("Input cannot start or end with two vowels");
-        }
-    }
-
-    let out = '';
-    let sk = false;
-
-    for (let i = 0; i < input.length; i++) {
-        if (!sk) {
-            let c = input[i];
-            if (isVowel(c)) {
-                if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
-                    for (let v = 0; v < dn; v++) {
-                        c = c.split(db[v][0]).join(db[v][1]);
-                    }
-                } else {
-                    sk = true;
-                    for (let v = 0; v < dn; v++) {
-                        c = c.split(da[v][0]).join(da[v][1]);
-                    }
-                    // put the diacritic from ‘da’ on the subsequent consonant properly
-                    if (i + 1 < input.length) {
-                        c = input[i+1] + c;
-                    }
-                }
-            }
-            out += c;
-        } else {
-            sk = false;
-        }
-    }
-    return out;
-}
-
-// UI Elements
-const inputBox = document.createElement('input');
-inputBox.type = 'text';
-inputBox.placeholder = 'Romanized:';
-inputBox.style.marginRight = '10px';
-
-const outputBox = document.createElement('textarea');
-outputBox.rows = 4;
-outputBox.cols = 40;
-outputBox.readOnly = true;
-outputBox.style.display = 'block';
-outputBox.style.marginTop = '10px';
-
-const copyButton = document.createElement('button');
-copyButton.textContent = 'Copy to Clipboard';
-
-const errorBox = document.createElement('div');
-errorBox.style.color = 'red';
-errorBox.style.marginTop = '10px';
-
-document.body.appendChild(inputBox);
-document.body.appendChild(copyButton);
-document.body.appendChild(outputBox);
-document.body.appendChild(errorBox);
-
-function updateOutput() {
-    errorBox.textContent = '';
-    try {
-        const result = transformInput(inputBox.value);
-        outputBox.value = result;
-    } catch (e) {
-        outputBox.value = '';
-        errorBox.textContent = e.message;
-    }
-}
-
-inputBox.addEventListener('input', updateOutput);
-
-
-copyButton.addEventListener('click', () => {
-    if (outputBox.value) {
-        navigator.clipboard.writeText(outputBox.value);
-    }
-});
-</script>
+<script src="converter.js"></script>
 </body>
 </html>

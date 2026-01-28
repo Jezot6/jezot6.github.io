@@ -3,19 +3,19 @@ const dn = dc.length;
 function isVowel(l) {
     return ['a','e','i','o','u','y'].includes(l);
 }
-function transformInput(input) {
-    if (input.length >= 2) {
-        if (isVowel(input[0]) && isVowel(input[1]) || isVowel(input[input.length-2]) && isVowel(input[input.length-1])) {
-            throw new Error("Input cannot start or end with two vowels");
-        }
-    }
-}
 function eng(str) {
                     str.replace(/ng/g, "ŋ");
                     str.replace(/nG/g, "ŋ");
                     str.replace(/Ng/g, 'Ŋ')
                     str.replace(/NG/g, 'Ŋ')
 }
+function transformInput(input) {
+    if (input.length >= 2) {
+        if (isVowel(input[0]) && isVowel(input[1]) || isVowel(input[input.length-2]) && isVowel(input[input.length-1])) {
+            throw new Error("Input cannot start or end with two vowels");
+        }
+    }
+
 
     let out = '';
     let sk = false;
@@ -44,7 +44,7 @@ function eng(str) {
         }
     }
 return out;
-
+}
 const inputBox = document.createElement('input');
 inputBox.type = 'text';
 inputBox.placeholder = 'Romanized:';

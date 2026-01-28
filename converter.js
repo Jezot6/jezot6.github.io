@@ -20,12 +20,12 @@ function transformInput(input) {
 
     let out = '';
     let sk = false;
-    input =e ng(input);
+    input =eng(input);
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
             let c = input[i];
             if (isVowel(c)) {
-                if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
+                if (!isVowel(input[i-1]) && /^[a-zŋ]$/i.test(input[i-1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {
                         c = c.split(dc[v][0]).join(dc[v][1]);
                     }

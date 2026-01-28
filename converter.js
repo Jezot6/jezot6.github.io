@@ -23,7 +23,7 @@ function transformInput(input) {
     input=eng(input);
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
-            let c = eng(input[i]);
+            let c = input[i];
             if (isVowel(c)) {
                 if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {
@@ -35,7 +35,7 @@ function transformInput(input) {
                         c = c.split(dc[v][0]).join(dc[v][2]);
                     }
                     if (i + 1 < input.length) {
-                        c = eng(input[i+1]) + c;
+                        c = input[i+1] + c;
                     }
                 }
             }

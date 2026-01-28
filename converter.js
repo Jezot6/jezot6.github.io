@@ -4,10 +4,10 @@ function isVowel(l) {
     return ['a','e','i','o','u','y'].includes(l);
 }
 function eng(str) {
-                    str.replace(/ng/g, "ŋ");
-                    str.replace(/nG/g, "ŋ");
-                    str.replace(/Ng/g, 'Ŋ')
-                    str.replace(/NG/g, 'Ŋ')
+                    // str.replace(/ng/g, "ŋ");
+                    // str.replace(/nG/g, "ŋ");
+                    // str.replace(/Ng/g, 'Ŋ')
+                    // str.replace(/NG/g, 'Ŋ')
 }
 function transformInput(input) {
     if (input.length >= 2) {

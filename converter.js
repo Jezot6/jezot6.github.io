@@ -33,7 +33,6 @@ function eng(str) {
                     for (let v = 0; v < dn; v++) {
                         c = c.split(dc[v][0]).join(dc[v][2]);
                     }
-                    // put the diacritic from ‘dc’ on the subsequent consonant properly
                     if (i + 1 < input.length) {
                         c = eng(input[i+1]) + c;
                     }

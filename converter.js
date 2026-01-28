@@ -9,11 +9,11 @@ function transformInput(input) {
             throw new Error("Input cannot start or end with two vowels");
         }
     }
-function ngToEng(string) {
-                if(['ng','nG'].includes(join(string[i],string[i+1])))
-                    return 'ŋ';
-                if(['Ng','NG'].includes(join(string[i],string[i+1])))
-                    return 'Ŋ';
+function eng(str) {
+                    str.replace(/ng/g, "ŋ");
+                    str.replace(/nG/g, "ŋ");
+                    str.replace(/Ng/g, 'Ŋ')
+                    str.replace(/NG/g, 'Ŋ')
 }
 
     let out = '';
@@ -21,7 +21,7 @@ function ngToEng(string) {
 
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
-            let c = input[i];
+            let c = eng(input[i];)
             if (isVowel(c)) {
                 if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {
@@ -34,15 +34,12 @@ function ngToEng(string) {
                     }
                     // put the diacritic from ‘dc’ on the subsequent consonant properly
                     if (i + 1 < input.length) {
-                        c = input[i+1] + c;
+                        c = eng(input[i+1]) + c;
                     }
                 }
             }
             out += c;
         } else {
-            if ['ng','nG'].includes(join(input[i],input[i+1]{
-
-            }
             sk = false;
         }
     }

@@ -45,7 +45,6 @@ function eng(str) {
         }
     }
     return out;
-}
 
 // UI Elements
 const inputBox = document.createElement('input');

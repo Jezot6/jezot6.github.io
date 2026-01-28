@@ -9,6 +9,12 @@ function transformInput(input) {
             throw new Error("Input cannot start or end with two vowels");
         }
     }
+function ngToEng(string) {
+                if(['ng','nG'].includes(join(string[i],string[i+1])))
+                    return 'ŋ';
+                if(['Ng','NG'].includes(join(string[i],string[i+1])))
+                    return 'Ŋ';
+}
 
     let out = '';
     let sk = false;
@@ -34,6 +40,9 @@ function transformInput(input) {
             }
             out += c;
         } else {
+            if ['ng','nG'].includes(join(input[i],input[i+1]{
+
+            }
             sk = false;
         }
     }

@@ -1,6 +1,5 @@
-const db = [['a','̂'],['e','̈'],['i','̍'],['o','̊'],['u','̆'],['y','̒']];
-const da = [['a','̬'],['e','̤'],['i','̩'],['o','̥'],['u','̯'],['y','̦']];
-const dn = db.length;
+const dc = [['a','̂','̬'],['e','̈','̤'],['i','̍','̩'],['o','̊','̥'],['u','̆','̯'],['y','̒','̦']];
+const dn = dc.length;
 function isVowel(l) {
     return ['a','e','i','o','u','y'].includes(l);
 }
@@ -20,14 +19,14 @@ function transformInput(input) {
             if (isVowel(c)) {
                 if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {
-                        c = c.split(db[v][0]).join(db[v][1]);
+                        c = c.split(dc[v][0]).join(dc[v][1]);
                     }
                 } else {
                     sk = true;
                     for (let v = 0; v < dn; v++) {
-                        c = c.split(da[v][0]).join(da[v][1]);
+                        c = c.split(dc[v][0]).join(dc[v][2]);
                     }
-                    // put the diacritic from ‘da’ on the subsequent consonant properly
+                    // put the diacritic from ‘dc’ on the subsequent consonant properly
                     if (i + 1 < input.length) {
                         c = input[i+1] + c;
                     }

@@ -9,6 +9,7 @@ function transformInput(input) {
             throw new Error("Input cannot start or end with two vowels");
         }
     }
+}
 function eng(str) {
                     str.replace(/ng/g, "ŋ");
                     str.replace(/nG/g, "ŋ");

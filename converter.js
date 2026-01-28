@@ -20,7 +20,7 @@ function transformInput(input) {
 
     let out = '';
     let sk = false;
-    input=eng(input);
+    input =e ng(input);
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
             let c = input[i];

@@ -22,7 +22,7 @@ function eng(str) {
 
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
-            let c = eng(input[i];)
+            let c = eng(input[i]);
             if (isVowel(c)) {
                 if (!isVowel(input[i-1]) && /^[a-z]$/i.test(input[i-1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {

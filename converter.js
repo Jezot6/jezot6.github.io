@@ -43,9 +43,8 @@ function eng(str) {
             sk = false;
         }
     }
-    return out;
+return out;
 
-// UI Elements
 const inputBox = document.createElement('input');
 inputBox.type = 'text';
 inputBox.placeholder = 'Romanized:';

@@ -1,7 +1,7 @@
-const dc = [['a','̂','̬'],['e','̈','̤'],['i','̍','̩'],['o','̊','̥'],['u','̆','̯'],['y','̓','̦']];
+const dc = [['a', '̂', '̬'], ['e', '̈', '̤'], ['i', '̍', '̩'], ['o', '̊', '̥'], ['u', '̆', '̯'], ['y', '̓', '̦']];
 const dn = dc.length;
 function isVowel(l) {
-    return ['a','e','i','o','u','y'].includes(l);
+    return ['a', 'e', 'i', 'o', 'u', 'y'].includes(l);
 }
 function eng(str) {
     return str
@@ -11,21 +11,23 @@ function eng(str) {
         .replace(/NG/g, 'Ŋ');
 }
 function transformInput(input) {
-    if (input.length >= 2) {
-        if (isVowel(input[0]) && isVowel(input[1]) || isVowel(input[input.length-2]) && isVowel(input[input.length-1])) {
-            throw new Error("Input cannot start or end with two vowels");
+    for (let i = 0; i < input.length; i++) {
+        if ((isVowel(input[i]) && isVowel(input[i + 1]) && !/^[a-zŋ]$/i.test(input[i + 2])) || (isVowel(input[i]) && isVowel(input[i + 1]) && !/^[a-zŋ]$/i.test(input[i - 1]))) {
+            throw new Error("Words cannot start or end with two vowels");
         }
+        if (isVowel(input[i].toLowerCase()))
+            input = input.slice(0, i) + input[i].toLowerCase() + input.slice(i+1);;
     }
 
 
     let out = '';
     let sk = false;
-    input =eng(input);
+    input = eng(input);
     for (let i = 0; i < input.length; i++) {
         if (!sk) {
             let c = input[i];
             if (isVowel(c)) {
-                if (!isVowel(input[i-1]) && /^[a-zŋ]$/i.test(input[i-1]) && i > 0) {
+                if (!isVowel(input[i - 1]) && /^[a-zŋ]$/i.test(input[i - 1]) && i > 0) {
                     for (let v = 0; v < dn; v++) {
                         c = c.split(dc[v][0]).join(dc[v][1]);
                     }
@@ -35,7 +37,7 @@ function transformInput(input) {
                         c = c.split(dc[v][0]).join(dc[v][2]);
                     }
                     if (i + 1 < input.length) {
-                        c = input[i+1] + c;
+                        c = input[i + 1] + c;
                     }
                 }
             }
@@ -44,7 +46,7 @@ function transformInput(input) {
             sk = false;
         }
     }
-return out;
+    return out;
 }
 const inputBox = document.createElement('input');
 inputBox.type = 'text';

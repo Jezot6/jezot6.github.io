@@ -59,6 +59,8 @@
         
         svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
+        
+        .shortcut-hint { font-size: 11px; color: #64748b; font-weight: normal; margin-left: auto; padding-right: 5px; }
     </style>
 </head>
 <body>
@@ -73,6 +75,7 @@
             </div>
             
             <div class="control-group">
+                <span class="shortcut-hint hidden-mobile">Ctrl+C/V Copy | Ctrl+Z/Y Undo</span>
                 <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
                 <div id="pagination" style="display: none; gap: 5px; align-items: center;">
                     <button onclick="changePage(-1)">◀</button>
@@ -89,10 +92,10 @@
             <select class="dropdown-tool" onchange="handleToolSelect(this)">
                 <option value="" disabled selected>🎹 Dynamics</option>
                 <option value="pp">pp</option>
-                <option value="p">p</option>
-                <option value="mp">mp</option>
-                <option value="mf">mf</option>
-                <option value="f">f</option>
+                <option value="p">p [p]</option>
+                <option value="mp">mp [n]</option>
+                <option value="mf">mf [m]</option>
+                <option value="f">f [f]</option>
                 <option value="ff">ff</option>
                 <option value="sfz">sfz</option>
                 <option value="sfp">sfp</option>
@@ -101,17 +104,17 @@
 
             <select class="dropdown-tool" onchange="handleToolSelect(this)" style="font-family: Georgia, serif; font-style: italic;">
                 <option value="" disabled selected style="font-family: sans-serif; font-style: normal;">🎵 Articulations</option>
-                <option value=">">&gt;</option>
+                <option value=">">&gt; [a]</option>
                 <option value="^">^</option>
-                <option value=".">.</option>
-                <option value="-">-</option>
+                <option value=".">. [s]</option>
+                <option value="-">- [t]</option>
             </select>
 
             <select class="dropdown-tool" onchange="handleToolSelect(this)">
                 <option value="" disabled selected>📐 Shapes</option>
-                <option value="cresc">&lt; Cresc</option>
-                <option value="dim">&gt; Dim</option>
-                <option value="bracket">┌─┐ Bracket</option>
+                <option value="cresc">&lt; Cresc [c]</option>
+                <option value="dim">&gt; Dim [d]</option>
+                <option value="bracket">┌─┐ Bracket [b]</option>
             </select>
             
             <select class="dropdown-tool" onchange="handleToolSelect(this)">
@@ -168,6 +171,11 @@
         let isTouchMode = false;
         let isFastMode = false;
 
+        // --- NEW: History & Clipboard State ---
+        let undoStack = [];
+        let redoStack = [];
+        let clipboardItem = null;
+
         const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('pdf-canvas');
         const ctx = canvas.getContext('2d');
@@ -175,6 +183,27 @@
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
         const fastBtn = document.getElementById('fastModeBtn');
+
+        // Capture state BEFORE a change is made
+        function pushState() {
+            undoStack.push(JSON.stringify(annotations));
+            if (undoStack.length > 50) undoStack.shift(); // Keep last 50 actions
+            redoStack = []; 
+        }
+
+        function undo() {
+            if (undoStack.length === 0) return;
+            redoStack.push(JSON.stringify(annotations));
+            annotations = JSON.parse(undoStack.pop());
+            saveState(); rebuildOverlay(); updateEditControls();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            undoStack.push(JSON.stringify(annotations));
+            annotations = JSON.parse(redoStack.pop());
+            saveState(); rebuildOverlay(); updateEditControls();
+        }
 
         function saveState() { localStorage.setItem('music_annotations', JSON.stringify(annotations)); }
 
@@ -195,6 +224,7 @@
         function discardAll() {
             if (annotations.length === 0) return alert("Nothing to discard!");
             if (confirm("⚠️ Are you sure you want to delete ALL your markings? This cannot be undone.")) {
+                pushState();
                 annotations = []; saveState(); selectedId = null; rebuildOverlay(); updateEditControls();
             }
         }
@@ -212,13 +242,8 @@
 
         function toggleFastMode() {
             isFastMode = !isFastMode;
-            if (isFastMode) {
-                fastBtn.classList.add('active');
-                fastBtn.innerText = "🚀 Fast";
-            } else {
-                fastBtn.classList.remove('active');
-                fastBtn.innerText = "🐢 Fine";
-            }
+            if (isFastMode) { fastBtn.classList.add('active'); fastBtn.innerText = "🚀 Fast"; } 
+            else { fastBtn.classList.remove('active'); fastBtn.innerText = "🐢 Fine"; }
         }
 
         document.getElementById('upload').addEventListener('change', async (e) => {
@@ -263,14 +288,13 @@
 
         function addCustomText() {
             const text = document.getElementById('customText').value;
-            if (text.trim() !== '') {
-                addItem('text', text);
-                document.getElementById('customText').value = ''; 
-            }
+            if (text.trim() !== '') { addItem('text', text); document.getElementById('customText').value = ''; }
         }
 
         function addItem(type, text) {
             if (!pdfDoc) return alert("Open a PDF first!");
+            pushState(); // Save before adding
+            
             const rect = workspace.getBoundingClientRect();
             const spawnY = Math.max(100, -rect.top + 150); 
 
@@ -305,9 +329,11 @@
 
                 let isDragging = false;
                 let startOffsetX, startOffsetY;
+                let hasMoved = false;
 
                 const startDrag = (e) => {
-                    e.preventDefault(); isDragging = true; selectItem(item.id);
+                    e.preventDefault(); isDragging = true; hasMoved = false;
+                    selectItem(item.id);
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -316,6 +342,7 @@
 
                 const doDrag = (e) => {
                     if (!isDragging) return;
+                    if (!hasMoved) { pushState(); hasMoved = true; } // Only push state once per drag sequence
                     e.preventDefault(); 
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -324,7 +351,7 @@
                     el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
                 };
 
-                const endDrag = () => { if (isDragging) { isDragging = false; saveState(); } };
+                const endDrag = () => { if (isDragging) { isDragging = false; if(hasMoved) saveState(); } };
 
                 el.addEventListener('mousedown', startDrag); document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', endDrag);
                 el.addEventListener('touchstart', startDrag, {passive: false}); document.addEventListener('touchmove', doDrag, {passive: false}); document.addEventListener('touchend', endDrag);
@@ -345,49 +372,107 @@
             else { textBtns.forEach(b => b.style.display = 'none'); shapeBtns.forEach(b => b.style.display = 'inline-block'); }
         }
 
-        // Modified for Fast/Slow move
         function moveSelected(dx, dy, isKeyboardShift = false) {
             if (!selectedId) return;
+            pushState();
             const item = annotations.find(a => a.id === selectedId);
             if (item) { 
                 const speedMultiplier = (isFastMode || isKeyboardShift) ? 15 : 1;
-                item.x += (dx * speedMultiplier); 
-                item.y += (dy * speedMultiplier); 
-                saveState(); 
-                rebuildOverlay(); 
+                item.x += (dx * speedMultiplier); item.y += (dy * speedMultiplier); 
+                saveState(); rebuildOverlay(); 
             }
         }
 
-        // --- NEW: Keyboard Event Listener ---
+        // --- NEW: Supercharged Keyboard Shortcuts ---
         document.addEventListener('keydown', (e) => {
-            if (!selectedId) return;
-            
-            // Do not intercept arrows if the user is typing in a text box or select menu
+            // Don't hijack keystrokes if typing in a text box
             const activeTag = document.activeElement.tagName;
             if (activeTag === 'INPUT' || activeTag === 'SELECT') return;
 
-            let moved = false;
-            if (e.key === 'ArrowUp') { moveSelected(0, -1, e.shiftKey); moved = true; }
-            else if (e.key === 'ArrowDown') { moveSelected(0, 1, e.shiftKey); moved = true; }
-            else if (e.key === 'ArrowLeft') { moveSelected(-1, 0, e.shiftKey); moved = true; }
-            else if (e.key === 'ArrowRight') { moveSelected(1, 0, e.shiftKey); moved = true; }
+            const isCtrl = e.ctrlKey || e.metaKey; // Supports Windows Ctrl or Mac Cmd
 
-            // Prevent default scrolling if an arrow key was used to move a symbol
-            if (moved) {
+            // Undo / Redo
+            if (isCtrl && e.key.toLowerCase() === 'z') {
                 e.preventDefault();
-            } else if (e.key === 'Backspace' || e.key === 'Delete') {
-                deleteSelected();
+                if (e.shiftKey) redo(); else undo();
+                return;
+            }
+            if (isCtrl && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+
+            // Copy / Paste
+            if (isCtrl && e.key.toLowerCase() === 'c') {
+                if (selectedId) {
+                    const itemToCopy = annotations.find(a => a.id === selectedId);
+                    if (itemToCopy) { clipboardItem = JSON.parse(JSON.stringify(itemToCopy)); }
+                }
+                return;
+            }
+            if (isCtrl && e.key.toLowerCase() === 'v') {
+                if (clipboardItem) {
+                    e.preventDefault();
+                    pushState();
+                    const newItem = { 
+                        ...clipboardItem, 
+                        id: Date.now().toString(), 
+                        pageNum: currentPageNum, // Paste onto current page
+                        x: clipboardItem.x + 20, // Offset slightly
+                        y: clipboardItem.y + 20 
+                    };
+                    annotations.push(newItem);
+                    saveState(); selectItem(newItem.id); rebuildOverlay();
+                }
+                return;
+            }
+
+            // Quick Insert Shortcuts (only if Ctrl/Alt aren't pressed)
+            if (!isCtrl && !e.altKey && pdfDoc) {
+                const keyMap = {
+                    'p': { type: 'text', val: 'p' },
+                    'f': { type: 'text', val: 'f' },
+                    'm': { type: 'text', val: 'mf' },
+                    'n': { type: 'text', val: 'mp' },
+                    'a': { type: 'text', val: '>' },
+                    's': { type: 'text', val: '.' },
+                    't': { type: 'text', val: '-' },
+                    'c': { type: 'cresc', val: '' },
+                    'd': { type: 'dim', val: '' },
+                    'b': { type: 'bracket', val: '' }
+                };
+                
+                if (keyMap[e.key.toLowerCase()]) {
+                    e.preventDefault();
+                    const mapping = keyMap[e.key.toLowerCase()];
+                    addItem(mapping.type, mapping.val);
+                    return;
+                }
+            }
+
+            // Nudge Movement
+            if (selectedId) {
+                let moved = false;
+                if (e.key === 'ArrowUp') { moveSelected(0, -1, e.shiftKey); moved = true; }
+                else if (e.key === 'ArrowDown') { moveSelected(0, 1, e.shiftKey); moved = true; }
+                else if (e.key === 'ArrowLeft') { moveSelected(-1, 0, e.shiftKey); moved = true; }
+                else if (e.key === 'ArrowRight') { moveSelected(1, 0, e.shiftKey); moved = true; }
+
+                if (moved) {
+                    e.preventDefault(); // Stop window from scrolling
+                } else if (e.key === 'Backspace' || e.key === 'Delete') {
+                    deleteSelected();
+                }
             }
         });
 
         function resizeItem(property, amount) {
             if (!selectedId) return;
+            pushState();
             const item = annotations.find(a => a.id === selectedId);
             if (item) { item[property] = Math.max(12, item[property] + amount); saveState(); rebuildOverlay(); }
         }
 
         function deleteSelected() {
             if (!selectedId) return;
+            pushState();
             annotations = annotations.filter(a => a.id !== selectedId);
             selectedId = null; saveState(); updateEditControls(); rebuildOverlay();
         }

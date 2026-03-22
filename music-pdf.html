@@ -26,6 +26,7 @@
         /* Music Symbols */
         .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 18px; font-style: italic; font-weight: bold; min-width: 40px; }
         .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 18px; min-width: 40px; }
+        .nudge-btn { background: #bae6fd; color: #0369a1; font-size: 16px; font-weight: bold; min-width: 35px; padding: 8px; }
         
         /* Workspace & Canvas */
         #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
@@ -53,8 +54,9 @@
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
         
         /* Edit Controls */
-        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center;}
+        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap;}
         #edit-controls.active { display: flex; }
+        .edit-divider { width: 2px; height: 30px; background: #60a5fa; margin: 0 8px; }
     </style>
 </head>
 <body>
@@ -118,12 +120,25 @@
         </div>
         
         <div class="section" id="edit-controls">
-            <span style="font-size: 14px; font-weight: bold; margin-right: 10px;">Edit Selected:</span>
+            <span style="font-size: 14px; font-weight: bold; margin-right: 5px;">Edit Selected:</span>
+            
+            <div style="display: flex; gap: 4px; margin-right: 5px;">
+                <button class="nudge-btn" onclick="moveSelected(0, -5)">▲</button>
+                <button class="nudge-btn" onclick="moveSelected(0, 5)">▼</button>
+                <button class="nudge-btn" onclick="moveSelected(-5, 0)">◀</button>
+                <button class="nudge-btn" onclick="moveSelected(5, 0)">▶</button>
+            </div>
+            
+            <div class="edit-divider"></div>
+
             <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
             <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
             <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Shorter</button>
             <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ Longer</button>
-            <button class="btn btn-danger" style="margin-left: 15px;" onclick="deleteSelected()">🗑️ Delete</button>
+            
+            <div class="edit-divider"></div>
+
+            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ Delete</button>
         </div>
     </div>
 
@@ -150,7 +165,7 @@
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
 
-        // --- DATA PERSISTENCE (Cookies/Local Storage equivalent) ---
+        // --- DATA PERSISTENCE ---
         function saveState() {
             localStorage.setItem('music_annotations', JSON.stringify(annotations));
         }
@@ -168,7 +183,6 @@
             }
         }
         
-        // Load on startup
         window.onload = loadState;
 
         function discardAll() {
@@ -183,7 +197,6 @@
             }
         }
 
-        // --- TOUCH MODE ---
         function toggleTouchMode() {
             isTouchMode = !isTouchMode;
             if (isTouchMode) {
@@ -205,7 +218,7 @@
             
             document.getElementById('pagination').style.display = 'flex';
             document.getElementById('toolbar').style.display = 'flex';
-            document.getElementById('statusMessage').style.display = 'none'; // Hide if showing
+            document.getElementById('statusMessage').style.display = 'none'; 
             currentPageNum = 1; 
             renderPage(currentPageNum);
         });
@@ -254,7 +267,7 @@
                 width: 100 
             };
             annotations.push(newItem);
-            saveState(); // Save to storage
+            saveState(); 
             selectItem(newItem.id);
             rebuildOverlay();
             
@@ -289,52 +302,44 @@
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
-                // --- NEW BULLETPROOF DRAG LOGIC (Mouse & Touch Native) ---
+                // Drag Logic (Kept for desktop/mouse fallback)
                 let isDragging = false;
                 let startOffsetX, startOffsetY;
 
                 const startDrag = (e) => {
-                    e.preventDefault(); // Stop scrolling immediately
+                    e.preventDefault();
                     isDragging = true;
                     selectItem(item.id);
-                    
                     const rect = workspace.getBoundingClientRect();
-                    // Handle both touch and mouse coords
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    
                     startOffsetX = clientX - rect.left - item.x;
                     startOffsetY = clientY - rect.top - item.y;
                 };
 
                 const doDrag = (e) => {
                     if (!isDragging) return;
-                    e.preventDefault(); // Lock scroll while moving
-                    
+                    e.preventDefault(); 
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    
                     item.x = clientX - rect.left - startOffsetX;
                     item.y = clientY - rect.top - startOffsetY;
-                    
                     el.style.left = `${item.x}px`; 
                     el.style.top = `${item.y}px`;
                 };
 
-                const endDrag = (e) => {
+                const endDrag = () => {
                     if (isDragging) {
                         isDragging = false;
-                        saveState(); // Save state when drop finishes
+                        saveState(); 
                     }
                 };
 
-                // Attach Mouse Events
                 el.addEventListener('mousedown', startDrag);
                 document.addEventListener('mousemove', doDrag);
                 document.addEventListener('mouseup', endDrag);
 
-                // Attach Native Touch Events (passive: false is strictly required to block scrolling)
                 el.addEventListener('touchstart', startDrag, {passive: false});
                 document.addEventListener('touchmove', doDrag, {passive: false});
                 document.addEventListener('touchend', endDrag);
@@ -368,6 +373,18 @@
             }
         }
 
+        // --- NEW: D-PAD MOVE LOGIC ---
+        function moveSelected(dx, dy) {
+            if (!selectedId) return;
+            const item = annotations.find(a => a.id === selectedId);
+            if (item) {
+                item.x += dx;
+                item.y += dy;
+                saveState();
+                rebuildOverlay();
+            }
+        }
+
         function resizeItem(property, amount) {
             if (!selectedId) return;
             const item = annotations.find(a => a.id === selectedId);
@@ -387,7 +404,6 @@
             rebuildOverlay();
         }
 
-        // Final Native Export
         async function exportPDF() {
             if (!originalPdfBytes) return alert("No PDF loaded!");
             const { PDFDocument, rgb } = PDFLib;

@@ -7,81 +7,125 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; touch-action: manipulation; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         
-        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 900px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; box-sizing: border-box;}
-        .section { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;}
+        .section { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .section-title { font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; width: 100%; margin-bottom: 2px; }
         
-        button, .btn { padding: 10px 16px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 16px; font-weight: 500; transition: 0.2s; }
+        button, .btn { padding: 8px 14px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 15px; font-weight: 500; transition: 0.1s; touch-action: manipulation; }
         button:active, .btn:active { transform: scale(0.95); }
         .btn-success { background: #10b981; }
         .btn-danger { background: #ef4444; }
+        .btn-toggle { background: #64748b; }
+        .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
         
-        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; width: 150px; }
+        input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; width: 120px; }
         
         /* Music Symbols */
-        .symbol-btn { background: #e4e4e7; color: #18181b; font-family: Georgia, serif; font-size: 18px; font-style: italic; font-weight: bold; min-width: 45px; }
-        .shape-btn { background: #fde047; color: #854d0e; font-weight: bold; font-size: 18px; }
+        .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 18px; font-style: italic; font-weight: bold; min-width: 40px; }
+        .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 18px; min-width: 40px; }
         
+        /* Workspace & Canvas */
         #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
+        
+        /* When Touch Mode is active, lock the workspace from scrolling */
+        .touch-locked { touch-action: none !important; }
+        
         #pdf-canvas { display: block; max-width: 100%; height: auto; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
         /* Draggable Items */
-        .draggable-item { position: absolute; pointer-events: auto; user-select: none; transform: translate(-50%, -50%); border: 2px dashed transparent; padding: 5px; cursor: grab; touch-action: none; display: flex; align-items: center; justify-content: center;}
+        .draggable-item { 
+            position: absolute; pointer-events: auto; user-select: none; 
+            transform: translate(-50%, -50%); border: 2px dashed transparent; 
+            cursor: grab; display: flex; align-items: center; justify-content: center;
+            /* Massive invisible hit box for easier tapping on mobile */
+            padding: 15px; margin: -15px; 
+            touch-action: none;
+        }
+        .draggable-item:active { cursor: grabbing; }
         .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); z-index: 100; }
         
-        .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; }
-        
-        /* Shapes */
+        .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; line-height: 1;}
         .type-shape { width: 100px; height: 20px; }
-        svg { width: 100%; height: 100%; overflow: visible; }
-        path, line { stroke: #b91c1c; stroke-width: 2; fill: none; }
         
-        #edit-controls { display: none; background: #bfdbfe; padding: 5px 10px; border-radius: 6px; }
+        svg { width: 100%; height: 100%; overflow: visible; }
+        path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
+        
+        /* Edit Controls */
+        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center;}
         #edit-controls.active { display: flex; }
     </style>
 </head>
 <body>
 
-    <div class="panel">
-        <div class="section">
+    <div class="panel" style="flex-direction: row; justify-content: space-between;">
+        <div style="display: flex; gap: 10px;">
             <input type="file" id="upload" accept="application/pdf" style="display: none;">
             <label for="upload" class="btn">📂 Open PDF</label>
-            <button class="btn btn-success" onclick="exportPDF()">💾 Save & Export</button>
+            <button class="btn btn-success" onclick="exportPDF()">💾 Save</button>
         </div>
-        <div class="section" id="pagination" style="display: none;">
-            <button onclick="changePage(-1)">◀</button>
-            <span id="page-info" style="font-weight: bold;">Page 1 / 1</span>
-            <button onclick="changePage(1)">▶</button>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
+            <div id="pagination" style="display: none; gap: 5px; align-items: center;">
+                <button onclick="changePage(-1)">◀</button>
+                <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
+                <button onclick="changePage(1)">▶</button>
+            </div>
         </div>
     </div>
 
     <div class="panel">
+        
         <div class="section">
-            <span style="font-size: 14px; font-weight: bold;">Text:</span>
-            <input type="text" id="customText" placeholder="e.g. legato">
-            <button onclick="addCustomText()">Add Text</button>
+            <div class="section-title">Dynamics</div>
+            <button class="symbol-btn" onclick="addItem('text', 'pp')">pp</button>
             <button class="symbol-btn" onclick="addItem('text', 'p')">p</button>
+            <button class="symbol-btn" onclick="addItem('text', 'mp')">mp</button>
+            <button class="symbol-btn" onclick="addItem('text', 'mf')">mf</button>
             <button class="symbol-btn" onclick="addItem('text', 'f')">f</button>
+            <button class="symbol-btn" onclick="addItem('text', 'ff')">ff</button>
+            <button class="symbol-btn" onclick="addItem('text', 'sfz')">sfz</button>
+            <button class="symbol-btn" onclick="addItem('text', 'sfp')">sfp</button>
+            <button class="symbol-btn" onclick="addItem('text', 'fz')">fz</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Articulations</div>
+            <button class="symbol-btn" onclick="addItem('text', '>')">&gt; (Acc)</button>
+            <button class="symbol-btn" onclick="addItem('text', '^')">^ (Mar)</button>
+            <button class="symbol-btn" onclick="addItem('text', '.')">. (Stacc)</button>
+            <button class="symbol-btn" onclick="addItem('text', '-')">- (Ten)</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Directives & Text</div>
             <button class="symbol-btn" onclick="addItem('text', 'rit.')">rit.</button>
+            <button class="symbol-btn" onclick="addItem('text', 'accel.')">accel.</button>
+            <button class="symbol-btn" onclick="addItem('text', 'a tempo')">a tempo</button>
+            <input type="text" id="customText" placeholder="Custom text...">
+            <button onclick="addCustomText()">Add</button>
         </div>
         
         <div class="section">
-            <span style="font-size: 14px; font-weight: bold;">Shapes:</span>
-            <button class="shape-btn" onclick="addItem('cresc', '')">&lt;</button>
-            <button class="shape-btn" onclick="addItem('dim', '')">&gt;</button>
-            <button class="shape-btn" onclick="addItem('bracket', '')">┌─┐</button>
+            <div class="section-title">Shapes (Stretchable)</div>
+            <button class="shape-btn" onclick="addItem('cresc', '')">&lt; Cresc</button>
+            <button class="shape-btn" onclick="addItem('dim', '')">&gt; Dim</button>
+            <button class="shape-btn" onclick="addItem('bracket', '')">┌─┐ Bracket</button>
         </div>
         
         <div class="section" id="edit-controls">
-            <span style="font-size: 14px; font-weight: bold;">Edit:</span>
-            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A-</button>
-            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A+</button>
-            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔-</button>
-            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔+</button>
+            <span style="font-size: 14px; font-weight: bold; margin-right: 10px;">Edit Selected:</span>
             
-            <button class="btn btn-danger" onclick="deleteSelected()">🗑️</button>
+            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
+            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
+            
+            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Shorter</button>
+            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ Longer</button>
+            
+            <button class="btn btn-danger" style="margin-left: 15px;" onclick="deleteSelected()">🗑️ Delete</button>
         </div>
     </div>
 
@@ -97,13 +141,32 @@
         let originalPdfBytes = null;
         let currentPageNum = 1;
         let scale = 1.5;
-        let annotations = []; // { id, pageNum, type, text, x, y, size, width }
+        let annotations = []; 
         let selectedId = null;
+        
+        // Touch Mode State
+        let isTouchMode = false;
 
+        const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('pdf-canvas');
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('overlay');
         const editControls = document.getElementById('edit-controls');
+        const touchBtn = document.getElementById('touchToggleBtn');
+
+        // Touch Mode Toggle Logic
+        function toggleTouchMode() {
+            isTouchMode = !isTouchMode;
+            if (isTouchMode) {
+                touchBtn.classList.add('active');
+                touchBtn.innerText = "👆 Touch Mode: ON";
+                workspace.classList.add('touch-locked'); // Prevents browser scrolling
+            } else {
+                touchBtn.classList.remove('active');
+                touchBtn.innerText = "👆 Touch Mode: OFF";
+                workspace.classList.remove('touch-locked');
+            }
+        }
 
         document.getElementById('upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -122,7 +185,7 @@
             canvas.width = viewport.width; canvas.height = viewport.height;
             workspace.style.width = viewport.width + 'px';
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            document.getElementById('page-info').innerText = `Page ${pageNum} / ${pdfDoc.numPages}`;
+            document.getElementById('page-info').innerText = `${pageNum} / ${pdfDoc.numPages}`;
             rebuildOverlay();
         }
 
@@ -139,25 +202,33 @@
             const text = document.getElementById('customText').value;
             if (text.trim() !== '') {
                 addItem('text', text);
-                document.getElementById('customText').value = ''; // Clear input
+                document.getElementById('customText').value = ''; 
             }
         }
 
         function addItem(type, text) {
             if (!pdfDoc) return alert("Open a PDF first!");
+            
+            // Adjust spawn point if user scrolled down
+            const rect = workspace.getBoundingClientRect();
+            const spawnY = Math.max(100, -rect.top + 150); 
+
             const newItem = {
                 id: Date.now().toString(),
                 pageNum: currentPageNum,
                 type: type,
                 text: text,
                 x: canvas.width / 2,
-                y: canvas.height / 3,
-                size: 24, // for text
-                width: 100 // for shapes
+                y: spawnY,
+                size: 26, 
+                width: 100 
             };
             annotations.push(newItem);
             selectItem(newItem.id);
             rebuildOverlay();
+            
+            // Auto-enable touch mode if they are on mobile and just added an item
+            if (window.innerWidth < 768 && !isTouchMode) toggleTouchMode();
         }
 
         function rebuildOverlay() {
@@ -177,7 +248,6 @@
                 } else {
                     el.classList.add('type-shape');
                     el.style.width = `${item.width}px`;
-                    // Generate SVGs for shapes
                     let svgInner = '';
                     if (item.type === 'cresc') {
                         svgInner = `<line x1="0" y1="50%" x2="100%" y2="0%" /><line x1="0" y1="50%" x2="100%" y2="100%" />`;
@@ -189,21 +259,31 @@
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
-                // Dragging logic
+                // Upgraded Pointer Dragging
                 let isDragging = false;
                 el.addEventListener('pointerdown', (e) => {
-                    e.preventDefault(); isDragging = true;
+                    e.preventDefault(); 
+                    isDragging = true;
                     el.setPointerCapture(e.pointerId);
                     selectItem(item.id);
                 });
+                
                 el.addEventListener('pointermove', (e) => {
                     if (!isDragging) return;
-                    item.x += e.movementX; item.y += e.movementY;
-                    el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
+                    
+                    // Standard movement
+                    item.x += e.movementX; 
+                    item.y += e.movementY;
+                    
+                    el.style.left = `${item.x}px`; 
+                    el.style.top = `${item.y}px`;
                 });
+                
                 el.addEventListener('pointerup', (e) => {
-                    isDragging = false; el.releasePointerCapture(e.pointerId);
+                    isDragging = false; 
+                    el.releasePointerCapture(e.pointerId);
                 });
+                
                 overlay.appendChild(el);
             });
         }
@@ -221,7 +301,6 @@
             editControls.classList.add('active');
             const item = annotations.find(a => a.id === selectedId);
             
-            // Show/Hide specific buttons based on type
             const textBtns = document.querySelectorAll('.edit-text-only');
             const shapeBtns = document.querySelectorAll('.edit-shape-only');
             
@@ -238,7 +317,7 @@
             if (!selectedId) return;
             const item = annotations.find(a => a.id === selectedId);
             if (item) {
-                item[property] = Math.max(10, item[property] + amount); // Min size/width is 10
+                item[property] = Math.max(12, item[property] + amount);
                 rebuildOverlay();
             }
         }
@@ -249,11 +328,12 @@
             selectedId = null; updateEditControls(); rebuildOverlay();
         }
 
+        // Tap background to deselect
         canvas.addEventListener('pointerdown', () => {
             selectedId = null; rebuildOverlay(); updateEditControls();
         });
 
-        // Export PDF with native shapes
+        // Final Native Export
         async function exportPDF() {
             if (!originalPdfBytes) return alert("No PDF loaded!");
             const { PDFDocument, rgb } = PDFLib;
@@ -276,13 +356,11 @@
                         x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0)
                     });
                 } else {
-                    // Export Shapes natively drawing lines on the PDF
                     const w = item.width / scale;
-                    const h = 20 / scale; // Default shape height
+                    const h = 20 / scale; 
                     const black = rgb(0,0,0);
                     const thick = 1.5;
 
-                    // Note: pdfX/pdfY represent the center of the shape
                     if (item.type === 'cresc') {
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });
@@ -301,7 +379,7 @@
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = "Annotated_Score_Pro.pdf";
+            link.download = "Final_Annotated_Score.pdf";
             link.click();
         }
     </script>

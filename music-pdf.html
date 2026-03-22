@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; overscroll-behavior-y: none; }
         
         .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;}
         .section { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
@@ -17,6 +17,7 @@
         button:active, .btn:active { transform: scale(0.95); }
         .btn-success { background: #10b981; }
         .btn-danger { background: #ef4444; }
+        .btn-warning { background: #f59e0b; color: black; }
         .btn-toggle { background: #64748b; }
         .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
         
@@ -28,21 +29,19 @@
         
         /* Workspace & Canvas */
         #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
-        
-        /* When Touch Mode is active, lock the workspace from scrolling */
         .touch-locked { touch-action: none !important; }
         
         #pdf-canvas { display: block; max-width: 100%; height: auto; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Draggable Items */
+        /* Draggable Items - Bulletproof Touch Setup */
         .draggable-item { 
             position: absolute; pointer-events: auto; user-select: none; 
             transform: translate(-50%, -50%); border: 2px dashed transparent; 
             cursor: grab; display: flex; align-items: center; justify-content: center;
-            /* Massive invisible hit box for easier tapping on mobile */
-            padding: 15px; margin: -15px; 
-            touch-action: none;
+            padding: 15px; margin: -15px; /* Large invisible hit box */
+            touch-action: none; /* Critical for mobile */
+            -webkit-user-select: none;
         }
         .draggable-item:active { cursor: grabbing; }
         .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); z-index: 100; }
@@ -50,7 +49,7 @@
         .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; line-height: 1;}
         .type-shape { width: 100px; height: 20px; }
         
-        svg { width: 100%; height: 100%; overflow: visible; }
+        svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
         
         /* Edit Controls */
@@ -61,10 +60,11 @@
 <body>
 
     <div class="panel" style="flex-direction: row; justify-content: space-between;">
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <input type="file" id="upload" accept="application/pdf" style="display: none;">
             <label for="upload" class="btn">📂 Open PDF</label>
-            <button class="btn btn-success" onclick="exportPDF()">💾 Save</button>
+            <button class="btn btn-success" onclick="exportPDF()">💾 Export PDF</button>
+            <button class="btn btn-danger" onclick="discardAll()">🗑️ Discard All</button>
         </div>
         
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -77,7 +77,8 @@
         </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="toolbar" style="display: none;">
+        <div id="statusMessage" style="color: #10b981; font-weight: bold; font-size: 14px; display: none;">Session Restored!</div>
         
         <div class="section">
             <div class="section-title">Dynamics</div>
@@ -118,13 +119,10 @@
         
         <div class="section" id="edit-controls">
             <span style="font-size: 14px; font-weight: bold; margin-right: 10px;">Edit Selected:</span>
-            
             <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
             <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
-            
             <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Shorter</button>
             <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ Longer</button>
-            
             <button class="btn btn-danger" style="margin-left: 15px;" onclick="deleteSelected()">🗑️ Delete</button>
         </div>
     </div>
@@ -143,8 +141,6 @@
         let scale = 1.5;
         let annotations = []; 
         let selectedId = null;
-        
-        // Touch Mode State
         let isTouchMode = false;
 
         const workspace = document.getElementById('workspace');
@@ -154,13 +150,46 @@
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
 
-        // Touch Mode Toggle Logic
+        // --- DATA PERSISTENCE (Cookies/Local Storage equivalent) ---
+        function saveState() {
+            localStorage.setItem('music_annotations', JSON.stringify(annotations));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('music_annotations');
+            if (saved) {
+                annotations = JSON.parse(saved);
+                if(annotations.length > 0) {
+                    const status = document.getElementById('statusMessage');
+                    status.style.display = 'block';
+                    status.innerText = `Found ${annotations.length} saved markings. Open your PDF to view them!`;
+                    setTimeout(() => status.style.display = 'none', 5000);
+                }
+            }
+        }
+        
+        // Load on startup
+        window.onload = loadState;
+
+        function discardAll() {
+            if (annotations.length === 0) return alert("Nothing to discard!");
+            const confirmDelete = confirm("⚠️ Are you sure you want to delete ALL your markings? This cannot be undone.");
+            if (confirmDelete) {
+                annotations = [];
+                saveState();
+                selectedId = null;
+                rebuildOverlay();
+                updateEditControls();
+            }
+        }
+
+        // --- TOUCH MODE ---
         function toggleTouchMode() {
             isTouchMode = !isTouchMode;
             if (isTouchMode) {
                 touchBtn.classList.add('active');
                 touchBtn.innerText = "👆 Touch Mode: ON";
-                workspace.classList.add('touch-locked'); // Prevents browser scrolling
+                workspace.classList.add('touch-locked');
             } else {
                 touchBtn.classList.remove('active');
                 touchBtn.innerText = "👆 Touch Mode: OFF";
@@ -173,8 +202,11 @@
             if (!file) return;
             originalPdfBytes = await file.arrayBuffer();
             pdfDoc = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
+            
             document.getElementById('pagination').style.display = 'flex';
-            currentPageNum = 1; annotations = [];
+            document.getElementById('toolbar').style.display = 'flex';
+            document.getElementById('statusMessage').style.display = 'none'; // Hide if showing
+            currentPageNum = 1; 
             renderPage(currentPageNum);
         });
 
@@ -208,8 +240,6 @@
 
         function addItem(type, text) {
             if (!pdfDoc) return alert("Open a PDF first!");
-            
-            // Adjust spawn point if user scrolled down
             const rect = workspace.getBoundingClientRect();
             const spawnY = Math.max(100, -rect.top + 150); 
 
@@ -224,10 +254,10 @@
                 width: 100 
             };
             annotations.push(newItem);
+            saveState(); // Save to storage
             selectItem(newItem.id);
             rebuildOverlay();
             
-            // Auto-enable touch mode if they are on mobile and just added an item
             if (window.innerWidth < 768 && !isTouchMode) toggleTouchMode();
         }
 
@@ -259,31 +289,56 @@
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
-                // Upgraded Pointer Dragging
+                // --- NEW BULLETPROOF DRAG LOGIC (Mouse & Touch Native) ---
                 let isDragging = false;
-                el.addEventListener('pointerdown', (e) => {
-                    e.preventDefault(); 
+                let startOffsetX, startOffsetY;
+
+                const startDrag = (e) => {
+                    e.preventDefault(); // Stop scrolling immediately
                     isDragging = true;
-                    el.setPointerCapture(e.pointerId);
                     selectItem(item.id);
-                });
-                
-                el.addEventListener('pointermove', (e) => {
-                    if (!isDragging) return;
                     
-                    // Standard movement
-                    item.x += e.movementX; 
-                    item.y += e.movementY;
+                    const rect = workspace.getBoundingClientRect();
+                    // Handle both touch and mouse coords
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    startOffsetX = clientX - rect.left - item.x;
+                    startOffsetY = clientY - rect.top - item.y;
+                };
+
+                const doDrag = (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault(); // Lock scroll while moving
+                    
+                    const rect = workspace.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    item.x = clientX - rect.left - startOffsetX;
+                    item.y = clientY - rect.top - startOffsetY;
                     
                     el.style.left = `${item.x}px`; 
                     el.style.top = `${item.y}px`;
-                });
-                
-                el.addEventListener('pointerup', (e) => {
-                    isDragging = false; 
-                    el.releasePointerCapture(e.pointerId);
-                });
-                
+                };
+
+                const endDrag = (e) => {
+                    if (isDragging) {
+                        isDragging = false;
+                        saveState(); // Save state when drop finishes
+                    }
+                };
+
+                // Attach Mouse Events
+                el.addEventListener('mousedown', startDrag);
+                document.addEventListener('mousemove', doDrag);
+                document.addEventListener('mouseup', endDrag);
+
+                // Attach Native Touch Events (passive: false is strictly required to block scrolling)
+                el.addEventListener('touchstart', startDrag, {passive: false});
+                document.addEventListener('touchmove', doDrag, {passive: false});
+                document.addEventListener('touchend', endDrag);
+
                 overlay.appendChild(el);
             });
         }
@@ -318,6 +373,7 @@
             const item = annotations.find(a => a.id === selectedId);
             if (item) {
                 item[property] = Math.max(12, item[property] + amount);
+                saveState();
                 rebuildOverlay();
             }
         }
@@ -325,13 +381,11 @@
         function deleteSelected() {
             if (!selectedId) return;
             annotations = annotations.filter(a => a.id !== selectedId);
-            selectedId = null; updateEditControls(); rebuildOverlay();
+            selectedId = null; 
+            saveState();
+            updateEditControls(); 
+            rebuildOverlay();
         }
-
-        // Tap background to deselect
-        canvas.addEventListener('pointerdown', () => {
-            selectedId = null; rebuildOverlay(); updateEditControls();
-        });
 
         // Final Native Export
         async function exportPDF() {

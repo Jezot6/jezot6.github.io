@@ -21,7 +21,6 @@
         .btn-toggle { background: #64748b; }
         .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
         
-        /* New Dropdown Styling */
         select.dropdown-tool { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 15px; font-weight: bold; color: #0f172a; cursor: pointer; outline: none; }
         select.dropdown-tool:focus { border-color: #3b82f6; }
         
@@ -31,6 +30,8 @@
         .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 16px; font-style: italic; font-weight: bold; min-width: 35px; }
         .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 15px; min-width: 35px; }
         .nudge-btn { background: #bae6fd; color: #0369a1; font-size: 16px; font-weight: bold; min-width: 35px; padding: 8px; }
+        .fast-btn { background: #e0e7ff; color: #4338ca; font-size: 14px; font-weight: bold; padding: 8px 10px; border: 2px solid transparent; }
+        .fast-btn.active { background: #fef08a; color: #854d0e; border-color: #eab308; }
         
         #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px;}
         #edit-controls.active { display: flex; }
@@ -129,11 +130,12 @@
         <div id="edit-controls">
             <span style="font-size: 14px; font-weight: bold;">Edit:</span>
             
-            <div style="display: flex; gap: 4px;">
-                <button class="nudge-btn" onclick="moveSelected(0, -5)">▲</button>
-                <button class="nudge-btn" onclick="moveSelected(0, 5)">▼</button>
-                <button class="nudge-btn" onclick="moveSelected(-5, 0)">◀</button>
-                <button class="nudge-btn" onclick="moveSelected(5, 0)">▶</button>
+            <div style="display: flex; gap: 4px; align-items: center;">
+                <button class="nudge-btn" onclick="moveSelected(0, -1)">▲</button>
+                <button class="nudge-btn" onclick="moveSelected(0, 1)">▼</button>
+                <button class="nudge-btn" onclick="moveSelected(-1, 0)">◀</button>
+                <button class="nudge-btn" onclick="moveSelected(1, 0)">▶</button>
+                <button id="fastModeBtn" class="fast-btn" onclick="toggleFastMode()">🐢 Fine</button>
             </div>
             
             <div class="edit-divider"></div>
@@ -164,6 +166,7 @@
         let annotations = []; 
         let selectedId = null;
         let isTouchMode = false;
+        let isFastMode = false;
 
         const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('pdf-canvas');
@@ -171,6 +174,7 @@
         const overlay = document.getElementById('overlay');
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
+        const fastBtn = document.getElementById('fastModeBtn');
 
         function saveState() { localStorage.setItem('music_annotations', JSON.stringify(annotations)); }
 
@@ -206,6 +210,17 @@
             }
         }
 
+        function toggleFastMode() {
+            isFastMode = !isFastMode;
+            if (isFastMode) {
+                fastBtn.classList.add('active');
+                fastBtn.innerText = "🚀 Fast";
+            } else {
+                fastBtn.classList.remove('active');
+                fastBtn.innerText = "🐢 Fine";
+            }
+        }
+
         document.getElementById('upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -238,18 +253,12 @@
             }
         }
 
-        // --- NEW DROPDOWN LOGIC ---
         function handleToolSelect(selectElement) {
             const val = selectElement.value;
             if (!val) return;
-            
-            if (['cresc', 'dim', 'bracket'].includes(val)) {
-                addItem(val, '');
-            } else {
-                addItem('text', val);
-            }
-            
-            selectElement.selectedIndex = 0; // Reset back to placeholder
+            if (['cresc', 'dim', 'bracket'].includes(val)) { addItem(val, ''); } 
+            else { addItem('text', val); }
+            selectElement.selectedIndex = 0; 
         }
 
         function addCustomText() {
@@ -336,11 +345,40 @@
             else { textBtns.forEach(b => b.style.display = 'none'); shapeBtns.forEach(b => b.style.display = 'inline-block'); }
         }
 
-        function moveSelected(dx, dy) {
+        // Modified for Fast/Slow move
+        function moveSelected(dx, dy, isKeyboardShift = false) {
             if (!selectedId) return;
             const item = annotations.find(a => a.id === selectedId);
-            if (item) { item.x += dx; item.y += dy; saveState(); rebuildOverlay(); }
+            if (item) { 
+                const speedMultiplier = (isFastMode || isKeyboardShift) ? 15 : 1;
+                item.x += (dx * speedMultiplier); 
+                item.y += (dy * speedMultiplier); 
+                saveState(); 
+                rebuildOverlay(); 
+            }
         }
+
+        // --- NEW: Keyboard Event Listener ---
+        document.addEventListener('keydown', (e) => {
+            if (!selectedId) return;
+            
+            // Do not intercept arrows if the user is typing in a text box or select menu
+            const activeTag = document.activeElement.tagName;
+            if (activeTag === 'INPUT' || activeTag === 'SELECT') return;
+
+            let moved = false;
+            if (e.key === 'ArrowUp') { moveSelected(0, -1, e.shiftKey); moved = true; }
+            else if (e.key === 'ArrowDown') { moveSelected(0, 1, e.shiftKey); moved = true; }
+            else if (e.key === 'ArrowLeft') { moveSelected(-1, 0, e.shiftKey); moved = true; }
+            else if (e.key === 'ArrowRight') { moveSelected(1, 0, e.shiftKey); moved = true; }
+
+            // Prevent default scrolling if an arrow key was used to move a symbol
+            if (moved) {
+                e.preventDefault();
+            } else if (e.key === 'Backspace' || e.key === 'Delete') {
+                deleteSelected();
+            }
+        });
 
         function resizeItem(property, amount) {
             if (!selectedId) return;

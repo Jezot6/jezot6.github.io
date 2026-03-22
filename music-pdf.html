@@ -101,17 +101,12 @@
                 
                 <div class="control-group">
                     <span class="shortcut-hint hidden-mobile">
-                        <b>Keys:</b> Ctrl+C/V/Z/Y | Arrows = Move<br>
-                        <b>+/-</b> = Resize Width/Font | <b>Shift +/-</b> = Resize Height
+                        <b>+/-</b> = Resize | <b>Shift +/-</b> = Height<br>
+                        <b>P/F</b> = p/f <i>(Shift=pp/ff)</i> | <b>R</b> = rit.<br>
+                        <b>S/A/C</b> = . / > / Cresc <i>(Shift=sfz/^/accel.)</i>
                     </span>
                     <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
                     
-                    <div id="zoom-controls" style="display: none; justify-content: space-between; align-items: center; background: #e2e8f0; border-radius: 6px; padding: 4px;">
-                        <button class="btn-icon" onclick="changeZoom(-0.2)">🔍-</button>
-                        <span id="zoom-info" style="font-size: 14px; font-weight: bold;">150%</span>
-                        <button class="btn-icon" onclick="changeZoom(0.2)">🔍+</button>
-                    </div>
-
                     <div id="pagination" style="display: none; gap: 5px; align-items: center;">
                         <button onclick="changePage(-1)">◀</button>
                         <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
@@ -152,7 +147,7 @@
                 
                 <select class="dropdown-tool" onchange="handleToolSelect(this)">
                     <option value="" disabled selected>📝 Text</option>
-                    <option value="rit.">rit.</option>
+                    <option value="rit.">rit. [r]</option>
                     <option value="accel.">accel.</option>
                     <option value="a tempo">a tempo</option>
                 </select>
@@ -207,7 +202,7 @@
         let pdfDoc = null;
         let originalPdfBytes = null;
         let currentPageNum = 1;
-        let scale = 1.5; 
+        const scale = 1.5; // Zoom logic removed, scale is now a constant
         let annotations = []; 
         let selectedId = null;
         let isTouchMode = false;
@@ -290,26 +285,6 @@
             else { fastBtn.classList.remove('active'); fastBtn.innerText = "🐢 Fine Move"; }
         }
 
-        function changeZoom(delta) {
-            if (!pdfDoc) return;
-            
-            const oldScale = scale;
-            scale = Math.max(0.5, Math.min(scale + delta, 3.0)); 
-            const scaleFactor = scale / oldScale;
-            
-            annotations.forEach(item => {
-                item.x *= scaleFactor;
-                item.y *= scaleFactor;
-                if (item.size) item.size *= scaleFactor;
-                if (item.width) item.width *= scaleFactor;
-                if (item.height) item.height *= scaleFactor; 
-            });
-            saveState();
-            
-            document.getElementById('zoom-info').innerText = Math.round(scale * 100) + '%';
-            renderPage(currentPageNum);
-        }
-
         document.getElementById('upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -317,11 +292,9 @@
             pdfDoc = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
             
             document.getElementById('pagination').style.display = 'flex';
-            document.getElementById('zoom-controls').style.display = 'flex';
             document.getElementById('toolbar').style.display = 'flex';
             document.getElementById('statusMessage').style.display = 'none'; 
             
-            document.getElementById('zoom-info').innerText = Math.round(scale * 100) + '%';
             currentPageNum = 1; renderPage(currentPageNum);
         });
 
@@ -499,14 +472,28 @@
                 } return;
             }
 
+            // --- UPDATED SHORTCUT MAPPING ---
             if (!isCtrl && !e.altKey && pdfDoc) {
+                const keyStr = e.key.toLowerCase();
                 const keyMap = {
-                    'p': { type: 'text', val: 'p' }, 'f': { type: 'text', val: 'f' }, 'm': { type: 'text', val: 'mf' },
-                    'n': { type: 'text', val: 'mp' }, 'a': { type: 'text', val: '>' }, 's': { type: 'text', val: '.' },
-                    't': { type: 'text', val: '-' }, 'c': { type: 'cresc', val: '' }, 'd': { type: 'dim', val: '' },
+                    'p': { type: 'text', val: e.shiftKey ? 'pp' : 'p' },
+                    'f': { type: 'text', val: e.shiftKey ? 'ff' : 'f' },
+                    'm': { type: 'text', val: 'mf' },
+                    'n': { type: 'text', val: 'mp' },
+                    'a': { type: 'text', val: e.shiftKey ? '^' : '>' }, 
+                    's': { type: 'text', val: e.shiftKey ? 'sfz' : '.' },
+                    't': { type: 'text', val: '-' },
+                    'c': { type: e.shiftKey ? 'text' : 'cresc', val: e.shiftKey ? 'accel.' : '' },
+                    'd': { type: 'dim', val: '' },
+                    'r': { type: 'text', val: 'rit.' },
                     'b': { type: 'bracket', val: '' }
                 };
-                if (keyMap[e.key.toLowerCase()]) { e.preventDefault(); const mapping = keyMap[e.key.toLowerCase()]; addItem(mapping.type, mapping.val); return; }
+                
+                if (keyMap[keyStr]) { 
+                    e.preventDefault(); 
+                    addItem(keyMap[keyStr].type, keyMap[keyStr].val); 
+                    return; 
+                }
             }
 
             if (selectedId) {
@@ -518,7 +505,6 @@
 
                 if (moved) { e.preventDefault(); } 
                 else if (e.key === 'Backspace' || e.key === 'Delete') { pushState(); deleteSelected(); }
-                // --- NEW SHORTCUTS: +/- RESIZING ---
                 else if (e.key === '+' || e.key === '=') {
                     e.preventDefault();
                     const item = annotations.find(a => a.id === selectedId);

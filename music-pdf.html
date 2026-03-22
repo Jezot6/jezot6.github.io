@@ -30,7 +30,19 @@
         select.dropdown-tool:focus { border-color: #3b82f6; }
         
         input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; flex-grow: 1; min-width: 80px;}
+        input[type="text"]:focus { outline: 2px solid #3b82f6; border-color: transparent; }
         
+        /* Color Palette Setup */
+        .palette-row { display: flex; gap: 12px; align-items: center; width: 100%; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 5px; justify-content: space-around; }
+        .color-slot-wrapper { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .color-slot { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; padding: 0; outline: none; transition: 0.15s; background: none; }
+        .color-slot.active { border-color: #cbd5e1; box-shadow: 0 0 0 4px #3b82f6; transform: scale(1.1); z-index: 2; }
+        .slot-label { font-size: 11px; font-weight: bold; color: #64748b; }
+        
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2); }
+        input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2); }
+
         /* Edit Controls */
         .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 16px; font-style: italic; font-weight: bold; min-width: 35px; }
         .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 15px; min-width: 35px; padding: 6px 10px; }
@@ -60,10 +72,10 @@
         .draggable-item:active { cursor: grabbing; }
         .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset;}
         
-        .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; line-height: 1;}
+        .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; white-space: nowrap; line-height: 1;}
         
         svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
-        path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
+        path, line, polyline { stroke: currentColor; stroke-width: 2; fill: none; }
         
         .shortcut-hint { font-size: 11px; color: #64748b; font-weight: normal; margin-left: auto; padding-right: 5px; text-align: right; line-height: 1.3; }
 
@@ -97,8 +109,8 @@
                     <span class="shortcut-hint hidden-mobile">
                         <b>P/F</b> = p/f <i>(Shift=pp/ff)</i> | <b>M</b> = mp <i>(Shift=mf)</i><br>
                         <b>6/8/4/2</b> = ^ / . / > / -<br>
-                        <b>S/R/A/T</b> = sfz / rit / accel / a tempo<br>
-                        <b>L</b> = Slur Top <i>(Shift=Slur Bottom)</i>
+                        <b>, / /</b> = Breath / Caesura | <b>'</b> = Quick Text<br>
+                        <b>1/3/5/7/9</b> = Change Color
                     </span>
                     <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
                     
@@ -114,6 +126,14 @@
             
             <div id="toolbar" class="control-group" style="display: none; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
                 
+                <div class="palette-row">
+                    <div class="color-slot-wrapper"><input type="color" id="color-1" class="color-slot active" value="#b91c1c" oninput="updatePalette('1', this.value)" onclick="setActivePalette('1')"><span class="slot-label">[1]</span></div>
+                    <div class="color-slot-wrapper"><input type="color" id="color-3" class="color-slot" value="#000000" oninput="updatePalette('3', this.value)" onclick="setActivePalette('3')"><span class="slot-label">[3]</span></div>
+                    <div class="color-slot-wrapper"><input type="color" id="color-5" class="color-slot" value="#2563eb" oninput="updatePalette('5', this.value)" onclick="setActivePalette('5')"><span class="slot-label">[5]</span></div>
+                    <div class="color-slot-wrapper"><input type="color" id="color-7" class="color-slot" value="#16a34a" oninput="updatePalette('7', this.value)" onclick="setActivePalette('7')"><span class="slot-label">[7]</span></div>
+                    <div class="color-slot-wrapper"><input type="color" id="color-9" class="color-slot" value="#d97706" oninput="updatePalette('9', this.value)" onclick="setActivePalette('9')"><span class="slot-label">[9]</span></div>
+                </div>
+
                 <select class="dropdown-tool" onchange="handleToolSelect(this)">
                     <option value="" disabled selected>🎹 Dynamics</option>
                     <option value="pp">pp [Shift+P]</option>
@@ -131,6 +151,8 @@
                     <option value="^">^ [6]</option>
                     <option value=".">. [8]</option>
                     <option value="-">- [2]</option>
+                    <option value=",">, Breath [,]</option>
+                    <option value="//">// Caesura [/]</option>
                 </select>
 
                 <select class="dropdown-tool" onchange="handleToolSelect(this)">
@@ -150,7 +172,7 @@
                 </select>
 
                 <div style="display: flex; gap: 4px; width: 100%;">
-                    <input type="text" id="customText" placeholder="Custom text...">
+                    <input type="text" id="customText" placeholder="Type text... [']">
                     <button onclick="addCustomText()">Add</button>
                 </div>
             </div>
@@ -208,6 +230,33 @@
         let redoStack = [];
         let clipboardItem = null;
 
+        // --- Color Palette Logic ---
+        let palettes = { '1': '#b91c1c', '3': '#000000', '5': '#2563eb', '7': '#16a34a', '9': '#d97706' };
+        let activePalette = '1';
+
+        function updatePalette(key, colorHex) {
+            palettes[key] = colorHex;
+            localStorage.setItem('music_palettes', JSON.stringify(palettes));
+            setActivePalette(key);
+        }
+
+        function setActivePalette(key) {
+            activePalette = key;
+            document.querySelectorAll('.color-slot').forEach(el => el.classList.remove('active'));
+            const activeInput = document.getElementById(`color-${key}`);
+            if (activeInput) activeInput.classList.add('active');
+
+            if (selectedId) {
+                pushState();
+                const item = annotations.find(a => a.id === selectedId);
+                if (item) {
+                    item.color = palettes[key];
+                    saveState();
+                    rebuildOverlay();
+                }
+            }
+        }
+
         const workspaceContainer = document.getElementById('workspace-container');
         const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('pdf-canvas');
@@ -216,8 +265,8 @@
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
         const fastBtn = document.getElementById('fastModeBtn');
+        const customTextInput = document.getElementById('customText');
 
-        // --- IndexedDB for True Auto-Save ---
         const dbName = "SheetMusicApp";
         const storeName = "pdfStore";
 
@@ -272,6 +321,16 @@
 
         async function loadState() {
             const status = document.getElementById('statusMessage');
+
+            const savedPalettes = localStorage.getItem('music_palettes');
+            if (savedPalettes) {
+                palettes = { ...palettes, ...JSON.parse(savedPalettes) };
+                for (let k in palettes) {
+                    const el = document.getElementById(`color-${k}`);
+                    if (el) el.value = palettes[k];
+                }
+            }
+
             try {
                 const savedPDF = await loadPDFFromDB();
                 if (savedPDF) {
@@ -307,46 +366,27 @@
 
         async function clearEntireSession() {
             if (confirm("🧨 COMPLETE RESET\n\nAre you sure you want to completely wipe the app? This will delete your saved PDF file and ALL of your markings. This cannot be undone.")) {
-                
-                // 1. Wipe text markings
                 localStorage.removeItem('music_annotations');
-                
-                // 2. Wipe saved PDF from database
                 try {
                     const db = await openDB();
                     const tx = db.transaction(storeName, "readwrite");
                     tx.objectStore(storeName).clear();
-                } catch (e) {
-                    console.error("Failed to clear DB", e);
-                }
+                } catch (e) { console.error("Failed to clear DB", e); }
 
-                // 3. Reset all variables
-                pdfDoc = null;
-                originalPdfBytes = null;
-                annotations = [];
-                selectedId = null;
-                undoStack = [];
-                redoStack = [];
+                pdfDoc = null; originalPdfBytes = null; annotations = []; selectedId = null; undoStack = []; redoStack = [];
 
-                // 4. Reset UI
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                workspace.style.width = '100%';
-                workspace.style.height = '100%';
+                workspace.style.width = '100%'; workspace.style.height = '100%';
                 overlay.innerHTML = '';
                 document.getElementById('pagination').style.display = 'none';
                 document.getElementById('toolbar').style.display = 'none';
-                document.getElementById('upload').value = ''; // Reset file input
+                document.getElementById('upload').value = ''; 
                 editControls.classList.remove('active');
 
-                // 5. Show success message
                 const status = document.getElementById('statusMessage');
-                status.style.display = 'block';
-                status.style.color = '#ef4444';
+                status.style.display = 'block'; status.style.color = '#ef4444';
                 status.innerText = "Session completely reset.";
-                setTimeout(() => { 
-                    status.style.display = 'none'; 
-                    status.style.color = '#10b981'; // reset to green
-                }, 4000);
+                setTimeout(() => { status.style.display = 'none'; status.style.color = '#10b981'; }, 4000);
             }
         }
 
@@ -371,7 +411,7 @@
             const file = e.target.files[0];
             if (!file) return;
             originalPdfBytes = await file.arrayBuffer();
-            await savePDFToDB(originalPdfBytes); // Save to database
+            await savePDFToDB(originalPdfBytes); 
             
             pdfDoc = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
             
@@ -415,9 +455,21 @@
         }
 
         function addCustomText() {
-            const text = document.getElementById('customText').value;
-            if (text.trim() !== '') { addItem('text', text); document.getElementById('customText').value = ''; }
+            const text = customTextInput.value;
+            if (text.trim() !== '') { 
+                addItem('text', text); 
+                customTextInput.value = ''; 
+            }
         }
+
+        // --- Custom Text Input Enter Key Logic ---
+        customTextInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomText();
+                this.blur(); // Drops focus so normal keyboard shortcuts work again
+            }
+        });
 
         function addItem(type, text) {
             if (!pdfDoc) return alert("Open a PDF first!");
@@ -431,6 +483,7 @@
                 pageNum: currentPageNum, 
                 type: type,
                 text: text, 
+                color: palettes[activePalette], 
                 x: canvas.width / 2, 
                 y: spawnY, 
                 size: Math.round(26 * (scale/1.5)), 
@@ -449,8 +502,12 @@
                 const el = document.createElement('div');
                 el.className = 'draggable-item';
                 if (item.id === selectedId) el.classList.add('selected');
+                
                 el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
                 
+                const itemColor = item.color || '#b91c1c'; 
+                el.style.color = itemColor; 
+
                 if (item.type === 'text') {
                     el.classList.add('type-text'); el.innerText = item.text; el.style.fontSize = `${item.size}px`;
                 } else {
@@ -534,7 +591,16 @@
 
         document.addEventListener('keydown', (e) => {
             const activeTag = document.activeElement.tagName;
+            
+            // Ignore normal hotkeys if typing in an input field
             if (activeTag === 'INPUT' || activeTag === 'SELECT') return;
+
+            // Trigger Custom Text Input with Quote (')
+            if (e.key === "'") {
+                e.preventDefault();
+                customTextInput.focus();
+                return;
+            }
 
             const isCtrl = e.ctrlKey || e.metaKey; 
 
@@ -554,6 +620,13 @@
                 } return;
             }
 
+            // Quick Color Switchers
+            if (['1', '3', '5', '7', '9'].includes(e.key)) {
+                e.preventDefault();
+                setActivePalette(e.key);
+                return;
+            }
+
             if (!isCtrl && !e.altKey && pdfDoc) {
                 const keyStr = e.key.toLowerCase();
                 const keyMap = {
@@ -564,6 +637,8 @@
                     '8': { type: 'text', val: '.' },
                     '4': { type: 'text', val: '>' },
                     '2': { type: 'text', val: '-' },
+                    ',': { type: 'text', val: ',' },
+                    '/': { type: 'text', val: '//' },
                     's': { type: 'text', val: 'sfz' },
                     'r': { type: 'text', val: 'rit.' },
                     'a': { type: 'text', val: 'accel.' },
@@ -621,6 +696,20 @@
             selectedId = null; saveState(); updateEditControls(); rebuildOverlay();
         }
 
+        function hexToRgb(hex) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length === 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) {
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return { r: r/255, g: g/255, b: b/255 };
+        }
+
         async function exportPDF() {
             if (!originalPdfBytes) return alert("No PDF loaded!");
             
@@ -640,30 +729,32 @@
                 const pdfX = (item.x / viewport.width) * page.getWidth();
                 const pdfY = page.getHeight() - ((item.y / viewport.height) * page.getHeight());
 
+                const colorVal = hexToRgb(item.color || '#b91c1c');
+                const pdfColor = rgb(colorVal.r, colorVal.g, colorVal.b);
+
                 if (item.type === 'text') {
                     const fontSize = item.size / scale;
                     const textWidth = boldItalicFont.widthOfTextAtSize(item.text, fontSize);
                     const textHeight = boldItalicFont.heightAtSize(fontSize);
                     
-                    page.drawText(item.text, { x: pdfX - (textWidth / 2), y: pdfY - (textHeight / 3), size: fontSize, font: boldItalicFont, color: rgb(0,0,0) });
+                    page.drawText(item.text, { x: pdfX - (textWidth / 2), y: pdfY - (textHeight / 3), size: fontSize, font: boldItalicFont, color: pdfColor });
                 } else {
-                    const w = item.width / scale; const h = item.height / scale; 
-                    const black = rgb(0,0,0); const thick = 1.5;
+                    const w = item.width / scale; const h = item.height / scale; const thick = 1.5;
                     
                     if (item.type === 'cresc') {
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: pdfColor });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: pdfColor });
                     } else if (item.type === 'dim') {
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY - h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: pdfColor });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY - h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: pdfColor });
                     } else if (item.type === 'bracket') {
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
-                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX - w/2, y: pdfY}, thickness: thick, color: black });
-                        page.drawLine({ start: {x: pdfX + w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: pdfColor });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX - w/2, y: pdfY}, thickness: thick, color: pdfColor });
+                        page.drawLine({ start: {x: pdfX + w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: pdfColor });
                     } else if (item.type === 'slur-top') {
-                        page.drawBezierCurve({ start: { x: pdfX - w/2, y: pdfY - h/2 }, control1: { x: pdfX - w*0.3, y: pdfY + h/2 + h*0.2 }, control2: { x: pdfX + w*0.3, y: pdfY + h/2 + h*0.2 }, end: { x: pdfX + w/2, y: pdfY - h/2 }, thickness: thick, color: black });
+                        page.drawBezierCurve({ start: { x: pdfX - w/2, y: pdfY - h/2 }, control1: { x: pdfX - w*0.3, y: pdfY + h/2 + h*0.2 }, control2: { x: pdfX + w*0.3, y: pdfY + h/2 + h*0.2 }, end: { x: pdfX + w/2, y: pdfY - h/2 }, thickness: thick, color: pdfColor });
                     } else if (item.type === 'slur-bottom') {
-                        page.drawBezierCurve({ start: { x: pdfX - w/2, y: pdfY + h/2 }, control1: { x: pdfX - w*0.3, y: pdfY - h/2 - h*0.2 }, control2: { x: pdfX + w*0.3, y: pdfY - h/2 - h*0.2 }, end: { x: pdfX + w/2, y: pdfY + h/2 }, thickness: thick, color: black });
+                        page.drawBezierCurve({ start: { x: pdfX - w/2, y: pdfY + h/2 }, control1: { x: pdfX - w*0.3, y: pdfY - h/2 - h*0.2 }, control2: { x: pdfX + w*0.3, y: pdfY - h/2 - h*0.2 }, end: { x: pdfX + w/2, y: pdfY + h/2 }, thickness: thick, color: pdfColor });
                     }
                 }
             }

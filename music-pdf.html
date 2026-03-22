@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sheet Music Annotator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .toolbar { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; z-index: 10; }
+        button, .file-upload { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+        button:hover, .file-upload:hover { background: #0056b3; }
+        .symbol-btn { background: #e4e4e7; color: #18181b; font-weight: bold; font-family: serif; font-size: 18px; }
+        .symbol-btn:hover { background: #d4d4d8; }
+        
+        #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px;}
+        #pdf-canvas { display: block; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* Draggable Symbols */
+        .draggable-symbol { position: absolute; cursor: grab; pointer-events: auto; user-select: none; font-family: serif; font-weight: bold; font-style: italic; color: red; /* Red so it stands out while editing */ transform: translate(-50%, -50%); border: 1px dashed transparent; padding: 5px; }
+        .draggable-symbol:hover { border-color: rgba(255,0,0,0.5); }
+        .draggable-symbol:active { cursor: grabbing; }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <input type="file" id="upload" accept="application/pdf" style="display: none;">
+        <label for="upload" class="file-upload">1. Upload PDF</label>
+        
+        <div style="width: 1px; height: 24px; background: #ccc; margin: 0 10px;"></div>
+        
+        <span>2. Add Symbols:</span>
+        <button class="symbol-btn" onclick="addSymbol('p')">p</button>
+        <button class="symbol-btn" onclick="addSymbol('f')">f</button>
+        <button class="symbol-btn" onclick="addSymbol('>')">&gt;</button>
+        <button class="symbol-btn" onclick="addSymbol('rit.')">rit.</button>
+        
+        <div style="width: 1px; height: 24px; background: #ccc; margin: 0 10px;"></div>
+        
+        <button onclick="exportPDF()" style="background: #10b981;">3. Export PDF</button>
+    </div>
+
+    <div id="workspace">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="overlay"></div>
+    </div>
+
+    <script>
+        // Setup PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        let originalPdfBytes = null;
+        let pdfDoc = null;
+        let pdfPage = null;
+        let viewport = null;
+        const scale = 1.5; // Scale for better resolution
+
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+
+        // 1. Handle PDF Upload
+        document.getElementById('upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const arrayBuffer = await file.arrayBuffer();
+            originalPdfBytes = arrayBuffer; // Save for export later
+
+            // Render with PDF.js
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            pdfDoc = await loadingTask.promise;
+            pdfPage = await pdfDoc.getPage(1); // Load page 1 for this prototype
+
+            viewport = pdfPage.getViewport({ scale: scale });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const renderContext = { canvasContext: ctx, viewport: viewport };
+            await pdfPage.render(renderContext).promise;
+            
+            // Clear existing symbols
+            overlay.innerHTML = '';
+        });
+
+        // 2. Add Draggable Symbols
+        function addSymbol(text) {
+            if (!viewport) return alert("Please upload a PDF first!");
+
+            const el = document.createElement('div');
+            el.className = 'draggable-symbol';
+            el.innerText = text;
+            el.style.fontSize = '24px'; // Default size
+            
+            // Spawn in the middle of the canvas
+            el.style.left = (canvas.width / 2) + 'px';
+            el.style.top = (canvas.height / 2) + 'px';
+
+            // Dragging Logic
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            el.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = parseInt(el.style.left, 10);
+                initialTop = parseInt(el.style.top, 10);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                el.style.left = `${initialLeft + dx}px`;
+                el.style.top = `${initialTop + dy}px`;
+            });
+
+            document.addEventListener('mouseup', () => { isDragging = false; });
+            
+            // Scroll to resize
+            el.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                let currentSize = parseInt(el.style.fontSize, 10);
+                if (e.deltaY < 0) currentSize += 2; // Scroll up -> larger
+                if (e.deltaY > 0 && currentSize > 10) currentSize -= 2; // Scroll down -> smaller
+                el.style.fontSize = currentSize + 'px';
+            });
+
+            overlay.appendChild(el);
+        }
+
+        // 3. Export to PDF
+        async function exportPDF() {
+            if (!originalPdfBytes) return alert("No PDF loaded!");
+
+            const { PDFDocument, rgb } = PDFLib;
+            // Load the original bytes to preserve quality and layout
+            const pdfDoc = await PDFDocument.load(originalPdfBytes);
+            const pages = pdfDoc.getPages();
+            const page = pages[0]; // Assuming page 1
+
+            const symbols = document.querySelectorAll('.draggable-symbol');
+            
+            symbols.forEach(el => {
+                const text = el.innerText;
+                const fontSizePx = parseInt(el.style.fontSize, 10);
+                
+                // Map DOM pixels to PDF points
+                const domX = parseFloat(el.style.left);
+                const domY = parseFloat(el.style.top);
+                
+                // PDF coordinates: (0,0) is bottom-left. DOM coordinates: (0,0) is top-left.
+                const pdfX = (domX / viewport.width) * page.getWidth();
+                // We subtract from page height to flip the Y axis
+                const pdfY = page.getHeight() - ((domY / viewport.height) * page.getHeight());
+                
+                // Scale font size based on viewport zoom
+                const pdfFontSize = fontSizePx / scale;
+
+                page.drawText(text, {
+                    x: pdfX,
+                    y: pdfY,
+                    size: pdfFontSize,
+                    color: rgb(0, 0, 0), // Draw it black on the final PDF
+                });
+            });
+
+            // Serialize and download
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "Annotated_Sheet_Music.pdf";
+            link.click();
+        }
+    </script>
+</body>
+</html>

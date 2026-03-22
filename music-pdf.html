@@ -9,24 +9,32 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; overscroll-behavior-y: none; }
         
-        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;}
-        .section { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; }
-        .section-title { font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; width: 100%; margin-bottom: 2px; }
+        .panel { background: white; padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box;}
+        
+        .top-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .control-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         
         button, .btn { padding: 8px 14px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 15px; font-weight: 500; transition: 0.1s; touch-action: manipulation; }
         button:active, .btn:active { transform: scale(0.95); }
         .btn-success { background: #10b981; }
         .btn-danger { background: #ef4444; }
-        .btn-warning { background: #f59e0b; color: black; }
         .btn-toggle { background: #64748b; }
         .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
         
+        /* New Dropdown Styling */
+        select.dropdown-tool { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 15px; font-weight: bold; color: #0f172a; cursor: pointer; outline: none; }
+        select.dropdown-tool:focus { border-color: #3b82f6; }
+        
         input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; width: 120px; }
         
-        /* Music Symbols */
-        .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 18px; font-style: italic; font-weight: bold; min-width: 40px; }
-        .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 18px; min-width: 40px; }
+        /* Edit Controls */
+        .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 16px; font-style: italic; font-weight: bold; min-width: 35px; }
+        .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 15px; min-width: 35px; }
         .nudge-btn { background: #bae6fd; color: #0369a1; font-size: 16px; font-weight: bold; min-width: 35px; padding: 8px; }
+        
+        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px;}
+        #edit-controls.active { display: flex; }
+        .edit-divider { width: 2px; height: 30px; background: #60a5fa; margin: 0 4px; }
         
         /* Workspace & Canvas */
         #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
@@ -35,14 +43,12 @@
         #pdf-canvas { display: block; max-width: 100%; height: auto; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Draggable Items - Bulletproof Touch Setup */
         .draggable-item { 
             position: absolute; pointer-events: auto; user-select: none; 
             transform: translate(-50%, -50%); border: 2px dashed transparent; 
             cursor: grab; display: flex; align-items: center; justify-content: center;
-            padding: 15px; margin: -15px; /* Large invisible hit box */
-            touch-action: none; /* Critical for mobile */
-            -webkit-user-select: none;
+            padding: 15px; margin: -15px; 
+            touch-action: none; -webkit-user-select: none;
         }
         .draggable-item:active { cursor: grabbing; }
         .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); z-index: 100; }
@@ -52,77 +58,78 @@
         
         svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
-        
-        /* Edit Controls */
-        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap;}
-        #edit-controls.active { display: flex; }
-        .edit-divider { width: 2px; height: 30px; background: #60a5fa; margin: 0 8px; }
     </style>
 </head>
 <body>
 
-    <div class="panel" style="flex-direction: row; justify-content: space-between;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="file" id="upload" accept="application/pdf" style="display: none;">
-            <label for="upload" class="btn">📂 Open PDF</label>
-            <button class="btn btn-success" onclick="exportPDF()">💾 Export PDF</button>
-            <button class="btn btn-danger" onclick="discardAll()">🗑️ Discard All</button>
-        </div>
-        
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
-            <div id="pagination" style="display: none; gap: 5px; align-items: center;">
-                <button onclick="changePage(-1)">◀</button>
-                <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
-                <button onclick="changePage(1)">▶</button>
+    <div class="panel">
+        <div class="top-row">
+            <div class="control-group">
+                <input type="file" id="upload" accept="application/pdf" style="display: none;">
+                <label for="upload" class="btn">📂 Open PDF</label>
+                <button class="btn btn-success" onclick="exportPDF()">💾 Export</button>
+                <button class="btn btn-danger" onclick="discardAll()">🗑️ Discard</button>
+            </div>
+            
+            <div class="control-group">
+                <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
+                <div id="pagination" style="display: none; gap: 5px; align-items: center;">
+                    <button onclick="changePage(-1)">◀</button>
+                    <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
+                    <button onclick="changePage(1)">▶</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="panel" id="toolbar" style="display: none;">
-        <div id="statusMessage" style="color: #10b981; font-weight: bold; font-size: 14px; display: none;">Session Restored!</div>
+        <div id="statusMessage" style="color: #10b981; font-weight: bold; font-size: 14px; display: none; text-align: center;">Session Restored!</div>
         
-        <div class="section">
-            <div class="section-title">Dynamics</div>
-            <button class="symbol-btn" onclick="addItem('text', 'pp')">pp</button>
-            <button class="symbol-btn" onclick="addItem('text', 'p')">p</button>
-            <button class="symbol-btn" onclick="addItem('text', 'mp')">mp</button>
-            <button class="symbol-btn" onclick="addItem('text', 'mf')">mf</button>
-            <button class="symbol-btn" onclick="addItem('text', 'f')">f</button>
-            <button class="symbol-btn" onclick="addItem('text', 'ff')">ff</button>
-            <button class="symbol-btn" onclick="addItem('text', 'sfz')">sfz</button>
-            <button class="symbol-btn" onclick="addItem('text', 'sfp')">sfp</button>
-            <button class="symbol-btn" onclick="addItem('text', 'fz')">fz</button>
-        </div>
-
-        <div class="section">
-            <div class="section-title">Articulations</div>
-            <button class="symbol-btn" onclick="addItem('text', '>')">&gt; (Acc)</button>
-            <button class="symbol-btn" onclick="addItem('text', '^')">^ (Mar)</button>
-            <button class="symbol-btn" onclick="addItem('text', '.')">. (Stacc)</button>
-            <button class="symbol-btn" onclick="addItem('text', '-')">- (Ten)</button>
-        </div>
-
-        <div class="section">
-            <div class="section-title">Directives & Text</div>
-            <button class="symbol-btn" onclick="addItem('text', 'rit.')">rit.</button>
-            <button class="symbol-btn" onclick="addItem('text', 'accel.')">accel.</button>
-            <button class="symbol-btn" onclick="addItem('text', 'a tempo')">a tempo</button>
-            <input type="text" id="customText" placeholder="Custom text...">
-            <button onclick="addCustomText()">Add</button>
-        </div>
-        
-        <div class="section">
-            <div class="section-title">Shapes (Stretchable)</div>
-            <button class="shape-btn" onclick="addItem('cresc', '')">&lt; Cresc</button>
-            <button class="shape-btn" onclick="addItem('dim', '')">&gt; Dim</button>
-            <button class="shape-btn" onclick="addItem('bracket', '')">┌─┐ Bracket</button>
-        </div>
-        
-        <div class="section" id="edit-controls">
-            <span style="font-size: 14px; font-weight: bold; margin-right: 5px;">Edit Selected:</span>
+        <div id="toolbar" class="control-group" style="display: none; justify-content: center; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
             
-            <div style="display: flex; gap: 4px; margin-right: 5px;">
+            <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                <option value="" disabled selected>🎹 Dynamics</option>
+                <option value="pp">pp</option>
+                <option value="p">p</option>
+                <option value="mp">mp</option>
+                <option value="mf">mf</option>
+                <option value="f">f</option>
+                <option value="ff">ff</option>
+                <option value="sfz">sfz</option>
+                <option value="sfp">sfp</option>
+                <option value="fz">fz</option>
+            </select>
+
+            <select class="dropdown-tool" onchange="handleToolSelect(this)" style="font-family: Georgia, serif; font-style: italic;">
+                <option value="" disabled selected style="font-family: sans-serif; font-style: normal;">🎵 Articulations</option>
+                <option value=">">&gt;</option>
+                <option value="^">^</option>
+                <option value=".">.</option>
+                <option value="-">-</option>
+            </select>
+
+            <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                <option value="" disabled selected>📐 Shapes</option>
+                <option value="cresc">&lt; Cresc</option>
+                <option value="dim">&gt; Dim</option>
+                <option value="bracket">┌─┐ Bracket</option>
+            </select>
+            
+            <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                <option value="" disabled selected>📝 Text</option>
+                <option value="rit.">rit.</option>
+                <option value="accel.">accel.</option>
+                <option value="a tempo">a tempo</option>
+            </select>
+
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="customText" placeholder="Custom text...">
+                <button onclick="addCustomText()">Add</button>
+            </div>
+        </div>
+
+        <div id="edit-controls">
+            <span style="font-size: 14px; font-weight: bold;">Edit:</span>
+            
+            <div style="display: flex; gap: 4px;">
                 <button class="nudge-btn" onclick="moveSelected(0, -5)">▲</button>
                 <button class="nudge-btn" onclick="moveSelected(0, 5)">▼</button>
                 <button class="nudge-btn" onclick="moveSelected(-5, 0)">◀</button>
@@ -165,10 +172,7 @@
         const editControls = document.getElementById('edit-controls');
         const touchBtn = document.getElementById('touchToggleBtn');
 
-        // --- DATA PERSISTENCE ---
-        function saveState() {
-            localStorage.setItem('music_annotations', JSON.stringify(annotations));
-        }
+        function saveState() { localStorage.setItem('music_annotations', JSON.stringify(annotations)); }
 
         function loadState() {
             const saved = localStorage.getItem('music_annotations');
@@ -182,30 +186,22 @@
                 }
             }
         }
-        
         window.onload = loadState;
 
         function discardAll() {
             if (annotations.length === 0) return alert("Nothing to discard!");
-            const confirmDelete = confirm("⚠️ Are you sure you want to delete ALL your markings? This cannot be undone.");
-            if (confirmDelete) {
-                annotations = [];
-                saveState();
-                selectedId = null;
-                rebuildOverlay();
-                updateEditControls();
+            if (confirm("⚠️ Are you sure you want to delete ALL your markings? This cannot be undone.")) {
+                annotations = []; saveState(); selectedId = null; rebuildOverlay(); updateEditControls();
             }
         }
 
         function toggleTouchMode() {
             isTouchMode = !isTouchMode;
             if (isTouchMode) {
-                touchBtn.classList.add('active');
-                touchBtn.innerText = "👆 Touch Mode: ON";
+                touchBtn.classList.add('active'); touchBtn.innerText = "👆 Touch Mode: ON";
                 workspace.classList.add('touch-locked');
             } else {
-                touchBtn.classList.remove('active');
-                touchBtn.innerText = "👆 Touch Mode: OFF";
+                touchBtn.classList.remove('active'); touchBtn.innerText = "👆 Touch Mode: OFF";
                 workspace.classList.remove('touch-locked');
             }
         }
@@ -219,8 +215,7 @@
             document.getElementById('pagination').style.display = 'flex';
             document.getElementById('toolbar').style.display = 'flex';
             document.getElementById('statusMessage').style.display = 'none'; 
-            currentPageNum = 1; 
-            renderPage(currentPageNum);
+            currentPageNum = 1; renderPage(currentPageNum);
         });
 
         async function renderPage(pageNum) {
@@ -243,6 +238,20 @@
             }
         }
 
+        // --- NEW DROPDOWN LOGIC ---
+        function handleToolSelect(selectElement) {
+            const val = selectElement.value;
+            if (!val) return;
+            
+            if (['cresc', 'dim', 'bracket'].includes(val)) {
+                addItem(val, '');
+            } else {
+                addItem('text', val);
+            }
+            
+            selectElement.selectedIndex = 0; // Reset back to placeholder
+        }
+
         function addCustomText() {
             const text = document.getElementById('customText').value;
             if (text.trim() !== '') {
@@ -257,20 +266,10 @@
             const spawnY = Math.max(100, -rect.top + 150); 
 
             const newItem = {
-                id: Date.now().toString(),
-                pageNum: currentPageNum,
-                type: type,
-                text: text,
-                x: canvas.width / 2,
-                y: spawnY,
-                size: 26, 
-                width: 100 
+                id: Date.now().toString(), pageNum: currentPageNum, type: type,
+                text: text, x: canvas.width / 2, y: spawnY, size: 26, width: 100 
             };
-            annotations.push(newItem);
-            saveState(); 
-            selectItem(newItem.id);
-            rebuildOverlay();
-            
+            annotations.push(newItem); saveState(); selectItem(newItem.id); rebuildOverlay();
             if (window.innerWidth < 768 && !isTouchMode) toggleTouchMode();
         }
 
@@ -285,36 +284,25 @@
                 el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
                 
                 if (item.type === 'text') {
-                    el.classList.add('type-text');
-                    el.innerText = item.text;
-                    el.style.fontSize = `${item.size}px`;
+                    el.classList.add('type-text'); el.innerText = item.text; el.style.fontSize = `${item.size}px`;
                 } else {
-                    el.classList.add('type-shape');
-                    el.style.width = `${item.width}px`;
+                    el.classList.add('type-shape'); el.style.width = `${item.width}px`;
                     let svgInner = '';
-                    if (item.type === 'cresc') {
-                        svgInner = `<line x1="0" y1="50%" x2="100%" y2="0%" /><line x1="0" y1="50%" x2="100%" y2="100%" />`;
-                    } else if (item.type === 'dim') {
-                        svgInner = `<line x1="0" y1="0%" x2="100%" y2="50%" /><line x1="0" y1="100%" x2="100%" y2="50%" />`;
-                    } else if (item.type === 'bracket') {
-                        svgInner = `<polyline points="0,20 0,0 100%,0 100%,20" />`;
-                    }
+                    if (item.type === 'cresc') svgInner = `<line x1="0" y1="50%" x2="100%" y2="0%" /><line x1="0" y1="50%" x2="100%" y2="100%" />`;
+                    else if (item.type === 'dim') svgInner = `<line x1="0" y1="0%" x2="100%" y2="50%" /><line x1="0" y1="100%" x2="100%" y2="50%" />`;
+                    else if (item.type === 'bracket') svgInner = `<polyline points="0,20 0,0 100%,0 100%,20" />`;
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
-                // Drag Logic (Kept for desktop/mouse fallback)
                 let isDragging = false;
                 let startOffsetX, startOffsetY;
 
                 const startDrag = (e) => {
-                    e.preventDefault();
-                    isDragging = true;
-                    selectItem(item.id);
+                    e.preventDefault(); isDragging = true; selectItem(item.id);
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    startOffsetX = clientX - rect.left - item.x;
-                    startOffsetY = clientY - rect.top - item.y;
+                    startOffsetX = clientX - rect.left - item.x; startOffsetY = clientY - rect.top - item.y;
                 };
 
                 const doDrag = (e) => {
@@ -323,85 +311,47 @@
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    item.x = clientX - rect.left - startOffsetX;
-                    item.y = clientY - rect.top - startOffsetY;
-                    el.style.left = `${item.x}px`; 
-                    el.style.top = `${item.y}px`;
+                    item.x = clientX - rect.left - startOffsetX; item.y = clientY - rect.top - startOffsetY;
+                    el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
                 };
 
-                const endDrag = () => {
-                    if (isDragging) {
-                        isDragging = false;
-                        saveState(); 
-                    }
-                };
+                const endDrag = () => { if (isDragging) { isDragging = false; saveState(); } };
 
-                el.addEventListener('mousedown', startDrag);
-                document.addEventListener('mousemove', doDrag);
-                document.addEventListener('mouseup', endDrag);
-
-                el.addEventListener('touchstart', startDrag, {passive: false});
-                document.addEventListener('touchmove', doDrag, {passive: false});
-                document.addEventListener('touchend', endDrag);
+                el.addEventListener('mousedown', startDrag); document.addEventListener('mousemove', doDrag); document.addEventListener('mouseup', endDrag);
+                el.addEventListener('touchstart', startDrag, {passive: false}); document.addEventListener('touchmove', doDrag, {passive: false}); document.addEventListener('touchend', endDrag);
 
                 overlay.appendChild(el);
             });
         }
 
-        function selectItem(id) {
-            selectedId = id;
-            rebuildOverlay(); updateEditControls();
-        }
+        function selectItem(id) { selectedId = id; rebuildOverlay(); updateEditControls(); }
 
         function updateEditControls() {
-            if (!selectedId) {
-                editControls.classList.remove('active');
-                return;
-            }
+            if (!selectedId) { editControls.classList.remove('active'); return; }
             editControls.classList.add('active');
             const item = annotations.find(a => a.id === selectedId);
-            
             const textBtns = document.querySelectorAll('.edit-text-only');
             const shapeBtns = document.querySelectorAll('.edit-shape-only');
-            
-            if (item.type === 'text') {
-                textBtns.forEach(b => b.style.display = 'inline-block');
-                shapeBtns.forEach(b => b.style.display = 'none');
-            } else {
-                textBtns.forEach(b => b.style.display = 'none');
-                shapeBtns.forEach(b => b.style.display = 'inline-block');
-            }
+            if (item.type === 'text') { textBtns.forEach(b => b.style.display = 'inline-block'); shapeBtns.forEach(b => b.style.display = 'none'); } 
+            else { textBtns.forEach(b => b.style.display = 'none'); shapeBtns.forEach(b => b.style.display = 'inline-block'); }
         }
 
-        // --- NEW: D-PAD MOVE LOGIC ---
         function moveSelected(dx, dy) {
             if (!selectedId) return;
             const item = annotations.find(a => a.id === selectedId);
-            if (item) {
-                item.x += dx;
-                item.y += dy;
-                saveState();
-                rebuildOverlay();
-            }
+            if (item) { item.x += dx; item.y += dy; saveState(); rebuildOverlay(); }
         }
 
         function resizeItem(property, amount) {
             if (!selectedId) return;
             const item = annotations.find(a => a.id === selectedId);
-            if (item) {
-                item[property] = Math.max(12, item[property] + amount);
-                saveState();
-                rebuildOverlay();
-            }
+            if (item) { item[property] = Math.max(12, item[property] + amount); saveState(); rebuildOverlay(); }
         }
 
         function deleteSelected() {
             if (!selectedId) return;
             annotations = annotations.filter(a => a.id !== selectedId);
-            selectedId = null; 
-            saveState();
-            updateEditControls(); 
-            rebuildOverlay();
+            selectedId = null; saveState(); updateEditControls(); rebuildOverlay();
         }
 
         async function exportPDF() {
@@ -422,15 +372,9 @@
                 const pdfY = page.getHeight() - ((item.y / viewport.height) * page.getHeight());
 
                 if (item.type === 'text') {
-                    page.drawText(item.text, {
-                        x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0)
-                    });
+                    page.drawText(item.text, { x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0) });
                 } else {
-                    const w = item.width / scale;
-                    const h = 20 / scale; 
-                    const black = rgb(0,0,0);
-                    const thick = 1.5;
-
+                    const w = item.width / scale; const h = 20 / scale; const black = rgb(0,0,0); const thick = 1.5;
                     if (item.type === 'cresc') {
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });
@@ -447,10 +391,7 @@
 
             const pdfBytes = await pdfDocLib.save();
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = "Final_Annotated_Score.pdf";
-            link.click();
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = "Final_Annotated_Score.pdf"; link.click();
         }
     </script>
 </body>

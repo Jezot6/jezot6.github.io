@@ -7,9 +7,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; overscroll-behavior-y: none; }
+        /* Base App Setup - Native App Feel */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; overscroll-behavior-y: none;}
         
-        .panel { background: white; padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box;}
+        #app-container { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+        /* Panel / Toolbar */
+        .panel { background: white; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 12px; z-index: 10; flex-shrink: 0; max-height: 45vh; overflow-y: auto; }
         
         .top-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
         .control-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -20,11 +24,12 @@
         .btn-danger { background: #ef4444; }
         .btn-toggle { background: #64748b; }
         .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
+        .btn-icon { padding: 8px 10px; background: #e2e8f0; color: #0f172a; font-weight: bold; }
         
-        select.dropdown-tool { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 15px; font-weight: bold; color: #0f172a; cursor: pointer; outline: none; }
+        select.dropdown-tool { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 15px; font-weight: bold; color: #0f172a; cursor: pointer; outline: none; flex-grow: 1; }
         select.dropdown-tool:focus { border-color: #3b82f6; }
         
-        input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; width: 120px; }
+        input[type="text"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; flex-grow: 1; min-width: 80px;}
         
         /* Edit Controls */
         .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 16px; font-style: italic; font-weight: bold; min-width: 35px; }
@@ -33,14 +38,16 @@
         .fast-btn { background: #e0e7ff; color: #4338ca; font-size: 14px; font-weight: bold; padding: 8px 10px; border: 2px solid transparent; }
         .fast-btn.active { background: #fef08a; color: #854d0e; border-color: #eab308; }
         
-        #edit-controls { display: none; background: #bfdbfe; padding: 8px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px;}
+        #edit-controls { display: none; background: #bfdbfe; padding: 10px; border-radius: 6px; border: 1px solid #93c5fd; width: 100%; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; box-sizing: border-box;}
         #edit-controls.active { display: flex; }
         .edit-divider { width: 2px; height: 30px; background: #60a5fa; margin: 0 4px; }
         
-        /* Workspace & Canvas */
-        #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
+        /* Workspace Wrapper */
+        #workspace-container { flex-grow: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 20px; background: #475569; touch-action: pan-x pan-y;}
         .touch-locked { touch-action: none !important; }
         
+        /* Canvas Context */
+        #workspace { position: relative; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         #pdf-canvas { display: block; max-width: 100%; height: auto; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
@@ -48,115 +55,142 @@
             position: absolute; pointer-events: auto; user-select: none; 
             transform: translate(-50%, -50%); border: 2px dashed transparent; 
             cursor: grab; display: flex; align-items: center; justify-content: center;
-            padding: 15px; margin: -15px; 
-            touch-action: none; -webkit-user-select: none;
+            padding: 15px; margin: -15px; touch-action: none; -webkit-user-select: none;
         }
         .draggable-item:active { cursor: grabbing; }
-        .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); z-index: 100; }
+        .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset;}
         
         .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; line-height: 1;}
-        .type-shape { width: 100px; height: 20px; }
-        
+        .type-shape { height: 20px; }
         svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
         
         .shortcut-hint { font-size: 11px; color: #64748b; font-weight: normal; margin-left: auto; padding-right: 5px; }
+
+        /* --- RESPONSIVE LANDSCAPE MAGIC --- */
+        @media (orientation: landscape) and (min-width: 700px) {
+            #app-container { flex-direction: row-reverse; } /* Puts panel on right */
+            .panel { 
+                width: 320px; 
+                height: 100vh; 
+                max-height: 100vh;
+                box-shadow: -4px 0 15px rgba(0,0,0,0.3); 
+                border-left: 1px solid #cbd5e1;
+            }
+            .top-row { flex-direction: column; align-items: stretch; }
+            .control-group { flex-direction: column; align-items: stretch; }
+            #toolbar { flex-direction: column; align-items: stretch; }
+            #pagination { justify-content: space-between; background: #f1f5f9; padding: 5px; border-radius: 6px; }
+            .shortcut-hint { display: none; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="panel">
-        <div class="top-row">
-            <div class="control-group">
-                <input type="file" id="upload" accept="application/pdf" style="display: none;">
-                <label for="upload" class="btn">📂 Open PDF</label>
-                <button class="btn btn-success" onclick="exportPDF()">💾 Export</button>
-                <button class="btn btn-danger" onclick="discardAll()">🗑️ Discard</button>
+    <div id="app-container">
+        <div class="panel">
+            <div class="top-row">
+                <div class="control-group">
+                    <input type="file" id="upload" accept="application/pdf" style="display: none;">
+                    <label for="upload" class="btn" style="text-align: center;">📂 Open PDF</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-success" style="flex: 1;" onclick="exportPDF()">💾 Export</button>
+                        <button class="btn btn-danger" onclick="discardAll()">🗑️</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <span class="shortcut-hint hidden-mobile">Ctrl+C/V Copy | Ctrl+Z/Y Undo</span>
+                    <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
+                    
+                    <div id="zoom-controls" style="display: none; justify-content: space-between; align-items: center; background: #e2e8f0; border-radius: 6px; padding: 4px;">
+                        <button class="btn-icon" onclick="changeZoom(-0.2)">🔍-</button>
+                        <span id="zoom-info" style="font-size: 14px; font-weight: bold;">150%</span>
+                        <button class="btn-icon" onclick="changeZoom(0.2)">🔍+</button>
+                    </div>
+
+                    <div id="pagination" style="display: none; gap: 5px; align-items: center;">
+                        <button onclick="changePage(-1)">◀</button>
+                        <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
+                        <button onclick="changePage(1)">▶</button>
+                    </div>
+                </div>
             </div>
+
+            <div id="statusMessage" style="color: #10b981; font-weight: bold; font-size: 14px; display: none; text-align: center;">Session Restored!</div>
             
-            <div class="control-group">
-                <span class="shortcut-hint hidden-mobile">Ctrl+C/V Copy | Ctrl+Z/Y Undo</span>
-                <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
-                <div id="pagination" style="display: none; gap: 5px; align-items: center;">
-                    <button onclick="changePage(-1)">◀</button>
-                    <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
-                    <button onclick="changePage(1)">▶</button>
+            <div id="toolbar" class="control-group" style="display: none; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                
+                <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                    <option value="" disabled selected>🎹 Dynamics</option>
+                    <option value="pp">pp</option>
+                    <option value="p">p [p]</option>
+                    <option value="mp">mp [n]</option>
+                    <option value="mf">mf [m]</option>
+                    <option value="f">f [f]</option>
+                    <option value="ff">ff</option>
+                    <option value="sfz">sfz</option>
+                </select>
+
+                <select class="dropdown-tool" onchange="handleToolSelect(this)" style="font-family: Georgia, serif; font-style: italic;">
+                    <option value="" disabled selected style="font-family: sans-serif; font-style: normal;">🎵 Articulations</option>
+                    <option value=">">&gt; [a]</option>
+                    <option value="^">^</option>
+                    <option value=".">. [s]</option>
+                    <option value="-">- [t]</option>
+                </select>
+
+                <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                    <option value="" disabled selected>📐 Shapes</option>
+                    <option value="cresc">&lt; Cresc [c]</option>
+                    <option value="dim">&gt; Dim [d]</option>
+                    <option value="bracket">┌─┐ Bracket [b]</option>
+                </select>
+                
+                <select class="dropdown-tool" onchange="handleToolSelect(this)">
+                    <option value="" disabled selected>📝 Text</option>
+                    <option value="rit.">rit.</option>
+                    <option value="accel.">accel.</option>
+                    <option value="a tempo">a tempo</option>
+                </select>
+
+                <div style="display: flex; gap: 4px; width: 100%;">
+                    <input type="text" id="customText" placeholder="Custom text...">
+                    <button onclick="addCustomText()">Add</button>
+                </div>
+            </div>
+
+            <div id="edit-controls">
+                <span style="font-size: 14px; font-weight: bold; width: 100%; text-align: center; color: #1e3a8a;">Selected Item</span>
+                
+                <div style="display: flex; gap: 4px; justify-content: center; width: 100%;">
+                    <button class="nudge-btn" onclick="moveSelected(0, -1)">▲</button>
+                    <button class="nudge-btn" onclick="moveSelected(0, 1)">▼</button>
+                    <button class="nudge-btn" onclick="moveSelected(-1, 0)">◀</button>
+                    <button class="nudge-btn" onclick="moveSelected(1, 0)">▶</button>
+                </div>
+                
+                <div style="display: flex; gap: 4px; justify-content: center; width: 100%; margin-top: 4px;">
+                    <button id="fastModeBtn" class="fast-btn" style="flex: 1;" onclick="toggleFastMode()">🐢 Fine Move</button>
+                </div>
+
+                <div class="edit-divider" style="width: 100%; height: 2px; margin: 6px 0;"></div>
+
+                <div style="display: flex; gap: 6px; justify-content: center; width: 100%;">
+                    <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
+                    <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
+                    <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Less</button>
+                    <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ More</button>
                 </div>
             </div>
         </div>
 
-        <div id="statusMessage" style="color: #10b981; font-weight: bold; font-size: 14px; display: none; text-align: center;">Session Restored!</div>
-        
-        <div id="toolbar" class="control-group" style="display: none; justify-content: center; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
-            
-            <select class="dropdown-tool" onchange="handleToolSelect(this)">
-                <option value="" disabled selected>🎹 Dynamics</option>
-                <option value="pp">pp</option>
-                <option value="p">p [p]</option>
-                <option value="mp">mp [n]</option>
-                <option value="mf">mf [m]</option>
-                <option value="f">f [f]</option>
-                <option value="ff">ff</option>
-                <option value="sfz">sfz</option>
-                <option value="sfp">sfp</option>
-                <option value="fz">fz</option>
-            </select>
-
-            <select class="dropdown-tool" onchange="handleToolSelect(this)" style="font-family: Georgia, serif; font-style: italic;">
-                <option value="" disabled selected style="font-family: sans-serif; font-style: normal;">🎵 Articulations</option>
-                <option value=">">&gt; [a]</option>
-                <option value="^">^</option>
-                <option value=".">. [s]</option>
-                <option value="-">- [t]</option>
-            </select>
-
-            <select class="dropdown-tool" onchange="handleToolSelect(this)">
-                <option value="" disabled selected>📐 Shapes</option>
-                <option value="cresc">&lt; Cresc [c]</option>
-                <option value="dim">&gt; Dim [d]</option>
-                <option value="bracket">┌─┐ Bracket [b]</option>
-            </select>
-            
-            <select class="dropdown-tool" onchange="handleToolSelect(this)">
-                <option value="" disabled selected>📝 Text</option>
-                <option value="rit.">rit.</option>
-                <option value="accel.">accel.</option>
-                <option value="a tempo">a tempo</option>
-            </select>
-
-            <div style="display: flex; gap: 4px;">
-                <input type="text" id="customText" placeholder="Custom text...">
-                <button onclick="addCustomText()">Add</button>
+        <div id="workspace-container">
+            <div id="workspace">
+                <canvas id="pdf-canvas"></canvas>
+                <div id="overlay"></div>
             </div>
         </div>
-
-        <div id="edit-controls">
-            <span style="font-size: 14px; font-weight: bold;">Edit:</span>
-            
-            <div style="display: flex; gap: 4px; align-items: center;">
-                <button class="nudge-btn" onclick="moveSelected(0, -1)">▲</button>
-                <button class="nudge-btn" onclick="moveSelected(0, 1)">▼</button>
-                <button class="nudge-btn" onclick="moveSelected(-1, 0)">◀</button>
-                <button class="nudge-btn" onclick="moveSelected(1, 0)">▶</button>
-                <button id="fastModeBtn" class="fast-btn" onclick="toggleFastMode()">🐢 Fine</button>
-            </div>
-            
-            <div class="edit-divider"></div>
-
-            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
-            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
-            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Shorter</button>
-            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ Longer</button>
-            
-            <div class="edit-divider"></div>
-
-            <button class="btn btn-danger" onclick="deleteSelected()">🗑️ Delete</button>
-        </div>
-    </div>
-
-    <div id="workspace">
-        <canvas id="pdf-canvas"></canvas>
-        <div id="overlay"></div>
     </div>
 
     <script>
@@ -165,17 +199,16 @@
         let pdfDoc = null;
         let originalPdfBytes = null;
         let currentPageNum = 1;
-        let scale = 1.5;
+        let scale = 1.5; // Default start zoom
         let annotations = []; 
         let selectedId = null;
         let isTouchMode = false;
         let isFastMode = false;
-
-        // --- NEW: History & Clipboard State ---
         let undoStack = [];
         let redoStack = [];
         let clipboardItem = null;
 
+        const workspaceContainer = document.getElementById('workspace-container');
         const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('pdf-canvas');
         const ctx = canvas.getContext('2d');
@@ -184,10 +217,9 @@
         const touchBtn = document.getElementById('touchToggleBtn');
         const fastBtn = document.getElementById('fastModeBtn');
 
-        // Capture state BEFORE a change is made
         function pushState() {
             undoStack.push(JSON.stringify(annotations));
-            if (undoStack.length > 50) undoStack.shift(); // Keep last 50 actions
+            if (undoStack.length > 50) undoStack.shift(); 
             redoStack = []; 
         }
 
@@ -214,7 +246,7 @@
                 if(annotations.length > 0) {
                     const status = document.getElementById('statusMessage');
                     status.style.display = 'block';
-                    status.innerText = `Found ${annotations.length} saved markings. Open your PDF to view them!`;
+                    status.innerText = `Found ${annotations.length} saved markings.`;
                     setTimeout(() => status.style.display = 'none', 5000);
                 }
             }
@@ -223,7 +255,7 @@
 
         function discardAll() {
             if (annotations.length === 0) return alert("Nothing to discard!");
-            if (confirm("⚠️ Are you sure you want to delete ALL your markings? This cannot be undone.")) {
+            if (confirm("⚠️ Delete ALL markings? Cannot be undone.")) {
                 pushState();
                 annotations = []; saveState(); selectedId = null; rebuildOverlay(); updateEditControls();
             }
@@ -233,17 +265,38 @@
             isTouchMode = !isTouchMode;
             if (isTouchMode) {
                 touchBtn.classList.add('active'); touchBtn.innerText = "👆 Touch Mode: ON";
-                workspace.classList.add('touch-locked');
+                workspaceContainer.classList.add('touch-locked');
             } else {
                 touchBtn.classList.remove('active'); touchBtn.innerText = "👆 Touch Mode: OFF";
-                workspace.classList.remove('touch-locked');
+                workspaceContainer.classList.remove('touch-locked');
             }
         }
 
         function toggleFastMode() {
             isFastMode = !isFastMode;
-            if (isFastMode) { fastBtn.classList.add('active'); fastBtn.innerText = "🚀 Fast"; } 
-            else { fastBtn.classList.remove('active'); fastBtn.innerText = "🐢 Fine"; }
+            if (isFastMode) { fastBtn.classList.add('active'); fastBtn.innerText = "🚀 Fast Move"; } 
+            else { fastBtn.classList.remove('active'); fastBtn.innerText = "🐢 Fine Move"; }
+        }
+
+        // --- NEW ZOOM LOGIC ---
+        function changeZoom(delta) {
+            if (!pdfDoc) return;
+            
+            const oldScale = scale;
+            scale = Math.max(0.5, Math.min(scale + delta, 3.0)); // Min 50%, Max 300%
+            const scaleFactor = scale / oldScale;
+            
+            // Mathematically scale ALL annotations so they perfectly align with the new zoom level
+            annotations.forEach(item => {
+                item.x *= scaleFactor;
+                item.y *= scaleFactor;
+                item.size *= scaleFactor;
+                item.width *= scaleFactor;
+            });
+            saveState();
+            
+            document.getElementById('zoom-info').innerText = Math.round(scale * 100) + '%';
+            renderPage(currentPageNum);
         }
 
         document.getElementById('upload').addEventListener('change', async (e) => {
@@ -253,17 +306,23 @@
             pdfDoc = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
             
             document.getElementById('pagination').style.display = 'flex';
+            document.getElementById('zoom-controls').style.display = 'flex';
             document.getElementById('toolbar').style.display = 'flex';
             document.getElementById('statusMessage').style.display = 'none'; 
+            
+            document.getElementById('zoom-info').innerText = Math.round(scale * 100) + '%';
             currentPageNum = 1; renderPage(currentPageNum);
         });
 
         async function renderPage(pageNum) {
             if (!pdfDoc) return;
             const page = await pdfDoc.getPage(pageNum);
+            
             const viewport = page.getViewport({ scale: scale });
             canvas.width = viewport.width; canvas.height = viewport.height;
             workspace.style.width = viewport.width + 'px';
+            workspace.style.height = viewport.height + 'px';
+
             await page.render({ canvasContext: ctx, viewport: viewport }).promise;
             document.getElementById('page-info').innerText = `${pageNum} / ${pdfDoc.numPages}`;
             rebuildOverlay();
@@ -275,6 +334,7 @@
             if (newPage >= 1 && newPage <= pdfDoc.numPages) {
                 currentPageNum = newPage; selectedId = null;
                 updateEditControls(); renderPage(currentPageNum);
+                workspaceContainer.scrollTo(0, 0); // Reset scroll position on new page
             }
         }
 
@@ -293,17 +353,18 @@
 
         function addItem(type, text) {
             if (!pdfDoc) return alert("Open a PDF first!");
-            pushState(); // Save before adding
+            pushState(); 
             
             const rect = workspace.getBoundingClientRect();
-            const spawnY = Math.max(100, -rect.top + 150); 
+            // Spawn relative to the current scroll position so it doesn't drop off-screen
+            const spawnY = Math.max(100, -rect.top + 200); 
 
             const newItem = {
                 id: Date.now().toString(), pageNum: currentPageNum, type: type,
-                text: text, x: canvas.width / 2, y: spawnY, size: 26, width: 100 
+                text: text, x: canvas.width / 2, y: spawnY, size: Math.round(26 * (scale/1.5)), width: Math.round(100 * (scale/1.5)) 
             };
             annotations.push(newItem); saveState(); selectItem(newItem.id); rebuildOverlay();
-            if (window.innerWidth < 768 && !isTouchMode) toggleTouchMode();
+            if (window.innerWidth < 700 && !isTouchMode) toggleTouchMode();
         }
 
         function rebuildOverlay() {
@@ -327,13 +388,10 @@
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
-                let isDragging = false;
-                let startOffsetX, startOffsetY;
-                let hasMoved = false;
+                let isDragging = false; let startOffsetX, startOffsetY; let hasMoved = false;
 
                 const startDrag = (e) => {
-                    e.preventDefault(); isDragging = true; hasMoved = false;
-                    selectItem(item.id);
+                    e.preventDefault(); isDragging = true; hasMoved = false; selectItem(item.id);
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -342,7 +400,7 @@
 
                 const doDrag = (e) => {
                     if (!isDragging) return;
-                    if (!hasMoved) { pushState(); hasMoved = true; } // Only push state once per drag sequence
+                    if (!hasMoved) { pushState(); hasMoved = true; } 
                     e.preventDefault(); 
                     const rect = workspace.getBoundingClientRect();
                     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -383,71 +441,38 @@
             }
         }
 
-        // --- NEW: Supercharged Keyboard Shortcuts ---
         document.addEventListener('keydown', (e) => {
-            // Don't hijack keystrokes if typing in a text box
             const activeTag = document.activeElement.tagName;
             if (activeTag === 'INPUT' || activeTag === 'SELECT') return;
 
-            const isCtrl = e.ctrlKey || e.metaKey; // Supports Windows Ctrl or Mac Cmd
+            const isCtrl = e.ctrlKey || e.metaKey; 
 
-            // Undo / Redo
-            if (isCtrl && e.key.toLowerCase() === 'z') {
-                e.preventDefault();
-                if (e.shiftKey) redo(); else undo();
-                return;
-            }
+            if (isCtrl && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
             if (isCtrl && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-
-            // Copy / Paste
             if (isCtrl && e.key.toLowerCase() === 'c') {
                 if (selectedId) {
                     const itemToCopy = annotations.find(a => a.id === selectedId);
                     if (itemToCopy) { clipboardItem = JSON.parse(JSON.stringify(itemToCopy)); }
-                }
-                return;
+                } return;
             }
             if (isCtrl && e.key.toLowerCase() === 'v') {
                 if (clipboardItem) {
-                    e.preventDefault();
-                    pushState();
-                    const newItem = { 
-                        ...clipboardItem, 
-                        id: Date.now().toString(), 
-                        pageNum: currentPageNum, // Paste onto current page
-                        x: clipboardItem.x + 20, // Offset slightly
-                        y: clipboardItem.y + 20 
-                    };
-                    annotations.push(newItem);
-                    saveState(); selectItem(newItem.id); rebuildOverlay();
-                }
-                return;
+                    e.preventDefault(); pushState();
+                    const newItem = { ...clipboardItem, id: Date.now().toString(), pageNum: currentPageNum, x: clipboardItem.x + 20, y: clipboardItem.y + 20 };
+                    annotations.push(newItem); saveState(); selectItem(newItem.id); rebuildOverlay();
+                } return;
             }
 
-            // Quick Insert Shortcuts (only if Ctrl/Alt aren't pressed)
             if (!isCtrl && !e.altKey && pdfDoc) {
                 const keyMap = {
-                    'p': { type: 'text', val: 'p' },
-                    'f': { type: 'text', val: 'f' },
-                    'm': { type: 'text', val: 'mf' },
-                    'n': { type: 'text', val: 'mp' },
-                    'a': { type: 'text', val: '>' },
-                    's': { type: 'text', val: '.' },
-                    't': { type: 'text', val: '-' },
-                    'c': { type: 'cresc', val: '' },
-                    'd': { type: 'dim', val: '' },
+                    'p': { type: 'text', val: 'p' }, 'f': { type: 'text', val: 'f' }, 'm': { type: 'text', val: 'mf' },
+                    'n': { type: 'text', val: 'mp' }, 'a': { type: 'text', val: '>' }, 's': { type: 'text', val: '.' },
+                    't': { type: 'text', val: '-' }, 'c': { type: 'cresc', val: '' }, 'd': { type: 'dim', val: '' },
                     'b': { type: 'bracket', val: '' }
                 };
-                
-                if (keyMap[e.key.toLowerCase()]) {
-                    e.preventDefault();
-                    const mapping = keyMap[e.key.toLowerCase()];
-                    addItem(mapping.type, mapping.val);
-                    return;
-                }
+                if (keyMap[e.key.toLowerCase()]) { e.preventDefault(); const mapping = keyMap[e.key.toLowerCase()]; addItem(mapping.type, mapping.val); return; }
             }
 
-            // Nudge Movement
             if (selectedId) {
                 let moved = false;
                 if (e.key === 'ArrowUp') { moveSelected(0, -1, e.shiftKey); moved = true; }
@@ -455,11 +480,8 @@
                 else if (e.key === 'ArrowLeft') { moveSelected(-1, 0, e.shiftKey); moved = true; }
                 else if (e.key === 'ArrowRight') { moveSelected(1, 0, e.shiftKey); moved = true; }
 
-                if (moved) {
-                    e.preventDefault(); // Stop window from scrolling
-                } else if (e.key === 'Backspace' || e.key === 'Delete') {
-                    deleteSelected();
-                }
+                if (moved) { e.preventDefault(); } 
+                else if (e.key === 'Backspace' || e.key === 'Delete') { pushState(); deleteSelected(); }
             }
         });
 
@@ -472,7 +494,6 @@
 
         function deleteSelected() {
             if (!selectedId) return;
-            pushState();
             annotations = annotations.filter(a => a.id !== selectedId);
             selectedId = null; saveState(); updateEditControls(); rebuildOverlay();
         }
@@ -497,7 +518,7 @@
                 if (item.type === 'text') {
                     page.drawText(item.text, { x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0) });
                 } else {
-                    const w = item.width / scale; const h = 20 / scale; const black = rgb(0,0,0); const thick = 1.5;
+                    const w = item.width / scale; const h = (20 * (scale/1.5)) / scale; const black = rgb(0,0,0); const thick = 1.5;
                     if (item.type === 'cresc') {
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });

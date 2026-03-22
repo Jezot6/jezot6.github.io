@@ -33,7 +33,7 @@
         
         /* Edit Controls */
         .symbol-btn { background: #e2e8f0; color: #0f172a; font-family: Georgia, serif; font-size: 16px; font-style: italic; font-weight: bold; min-width: 35px; }
-        .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 15px; min-width: 35px; }
+        .shape-btn { background: #fef08a; color: #854d0e; font-weight: bold; font-size: 15px; min-width: 35px; padding: 6px 10px; }
         .nudge-btn { background: #bae6fd; color: #0369a1; font-size: 16px; font-weight: bold; min-width: 35px; padding: 8px; }
         .fast-btn { background: #e0e7ff; color: #4338ca; font-size: 14px; font-weight: bold; padding: 8px 10px; border: 2px solid transparent; }
         .fast-btn.active { background: #fef08a; color: #854d0e; border-color: #eab308; }
@@ -61,17 +61,17 @@
         .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); z-index: 100; box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset;}
         
         .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; line-height: 1;}
-        .type-shape { height: 20px; }
+        
         svg { width: 100%; height: 100%; overflow: visible; pointer-events: none;}
         path, line, polyline { stroke: #b91c1c; stroke-width: 2; fill: none; }
         
-        .shortcut-hint { font-size: 11px; color: #64748b; font-weight: normal; margin-left: auto; padding-right: 5px; }
+        .shortcut-hint { font-size: 11px; color: #64748b; font-weight: normal; margin-left: auto; padding-right: 5px; text-align: right; line-height: 1.3; }
 
         /* --- RESPONSIVE LANDSCAPE MAGIC --- */
         @media (orientation: landscape) and (min-width: 700px) {
             #app-container { flex-direction: row-reverse; } /* Puts panel on right */
             .panel { 
-                width: 320px; 
+                width: 330px; 
                 height: 100vh; 
                 max-height: 100vh;
                 box-shadow: -4px 0 15px rgba(0,0,0,0.3); 
@@ -100,7 +100,10 @@
                 </div>
                 
                 <div class="control-group">
-                    <span class="shortcut-hint hidden-mobile">Ctrl+C/V Copy | Ctrl+Z/Y Undo</span>
+                    <span class="shortcut-hint hidden-mobile">
+                        <b>Keys:</b> Ctrl+C/V/Z/Y | Arrows = Move<br>
+                        <b>+/-</b> = Resize Width/Font | <b>Shift +/-</b> = Resize Height
+                    </span>
                     <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
                     
                     <div id="zoom-controls" style="display: none; justify-content: space-between; align-items: center; background: #e2e8f0; border-radius: 6px; padding: 4px;">
@@ -176,11 +179,16 @@
 
                 <div class="edit-divider" style="width: 100%; height: 2px; margin: 6px 0;"></div>
 
-                <div style="display: flex; gap: 6px; justify-content: center; width: 100%;">
-                    <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A -</button>
-                    <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A +</button>
-                    <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔ Less</button>
-                    <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔ More</button>
+                <div class="edit-text-only" style="display: flex; gap: 6px; justify-content: center; width: 100%;">
+                    <button class="symbol-btn" onclick="resizeItem('size', -4)">A -</button>
+                    <button class="symbol-btn" onclick="resizeItem('size', 4)">A +</button>
+                </div>
+
+                <div class="edit-shape-only" style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%;">
+                    <button class="shape-btn" onclick="resizeItem('width', -15)">↔ Less</button>
+                    <button class="shape-btn" onclick="resizeItem('width', 15)">↔ More</button>
+                    <button class="shape-btn" onclick="resizeItem('height', -5)">↕ Thinner</button>
+                    <button class="shape-btn" onclick="resizeItem('height', 5)">↕ Thicker</button>
                 </div>
             </div>
         </div>
@@ -199,7 +207,7 @@
         let pdfDoc = null;
         let originalPdfBytes = null;
         let currentPageNum = 1;
-        let scale = 1.5; // Default start zoom
+        let scale = 1.5; 
         let annotations = []; 
         let selectedId = null;
         let isTouchMode = false;
@@ -243,6 +251,10 @@
             const saved = localStorage.getItem('music_annotations');
             if (saved) {
                 annotations = JSON.parse(saved);
+                annotations.forEach(a => {
+                    if (a.type !== 'text' && !a.height) a.height = 20 * (scale / 1.5);
+                });
+
                 if(annotations.length > 0) {
                     const status = document.getElementById('statusMessage');
                     status.style.display = 'block';
@@ -278,20 +290,19 @@
             else { fastBtn.classList.remove('active'); fastBtn.innerText = "🐢 Fine Move"; }
         }
 
-        // --- NEW ZOOM LOGIC ---
         function changeZoom(delta) {
             if (!pdfDoc) return;
             
             const oldScale = scale;
-            scale = Math.max(0.5, Math.min(scale + delta, 3.0)); // Min 50%, Max 300%
+            scale = Math.max(0.5, Math.min(scale + delta, 3.0)); 
             const scaleFactor = scale / oldScale;
             
-            // Mathematically scale ALL annotations so they perfectly align with the new zoom level
             annotations.forEach(item => {
                 item.x *= scaleFactor;
                 item.y *= scaleFactor;
-                item.size *= scaleFactor;
-                item.width *= scaleFactor;
+                if (item.size) item.size *= scaleFactor;
+                if (item.width) item.width *= scaleFactor;
+                if (item.height) item.height *= scaleFactor; 
             });
             saveState();
             
@@ -334,7 +345,7 @@
             if (newPage >= 1 && newPage <= pdfDoc.numPages) {
                 currentPageNum = newPage; selectedId = null;
                 updateEditControls(); renderPage(currentPageNum);
-                workspaceContainer.scrollTo(0, 0); // Reset scroll position on new page
+                workspaceContainer.scrollTo(0, 0); 
             }
         }
 
@@ -356,12 +367,18 @@
             pushState(); 
             
             const rect = workspace.getBoundingClientRect();
-            // Spawn relative to the current scroll position so it doesn't drop off-screen
             const spawnY = Math.max(100, -rect.top + 200); 
 
             const newItem = {
-                id: Date.now().toString(), pageNum: currentPageNum, type: type,
-                text: text, x: canvas.width / 2, y: spawnY, size: Math.round(26 * (scale/1.5)), width: Math.round(100 * (scale/1.5)) 
+                id: Date.now().toString(), 
+                pageNum: currentPageNum, 
+                type: type,
+                text: text, 
+                x: canvas.width / 2, 
+                y: spawnY, 
+                size: Math.round(26 * (scale/1.5)), 
+                width: Math.round(100 * (scale/1.5)),
+                height: Math.round(20 * (scale/1.5))
             };
             annotations.push(newItem); saveState(); selectItem(newItem.id); rebuildOverlay();
             if (window.innerWidth < 700 && !isTouchMode) toggleTouchMode();
@@ -380,11 +397,14 @@
                 if (item.type === 'text') {
                     el.classList.add('type-text'); el.innerText = item.text; el.style.fontSize = `${item.size}px`;
                 } else {
-                    el.classList.add('type-shape'); el.style.width = `${item.width}px`;
+                    el.classList.add('type-shape'); 
+                    el.style.width = `${item.width}px`;
+                    el.style.height = `${item.height}px`; 
+                    
                     let svgInner = '';
                     if (item.type === 'cresc') svgInner = `<line x1="0" y1="50%" x2="100%" y2="0%" /><line x1="0" y1="50%" x2="100%" y2="100%" />`;
                     else if (item.type === 'dim') svgInner = `<line x1="0" y1="0%" x2="100%" y2="50%" /><line x1="0" y1="100%" x2="100%" y2="50%" />`;
-                    else if (item.type === 'bracket') svgInner = `<polyline points="0,20 0,0 100%,0 100%,20" />`;
+                    else if (item.type === 'bracket') svgInner = `<polyline points="0,100% 0,0 100%,0 100%,100%" />`;
                     el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
                 }
 
@@ -426,8 +446,13 @@
             const item = annotations.find(a => a.id === selectedId);
             const textBtns = document.querySelectorAll('.edit-text-only');
             const shapeBtns = document.querySelectorAll('.edit-shape-only');
-            if (item.type === 'text') { textBtns.forEach(b => b.style.display = 'inline-block'); shapeBtns.forEach(b => b.style.display = 'none'); } 
-            else { textBtns.forEach(b => b.style.display = 'none'); shapeBtns.forEach(b => b.style.display = 'inline-block'); }
+            if (item.type === 'text') { 
+                textBtns.forEach(b => b.style.display = 'flex'); 
+                shapeBtns.forEach(b => b.style.display = 'none'); 
+            } else { 
+                textBtns.forEach(b => b.style.display = 'none'); 
+                shapeBtns.forEach(b => b.style.display = 'flex'); 
+            }
         }
 
         function moveSelected(dx, dy, isKeyboardShift = false) {
@@ -437,6 +462,17 @@
             if (item) { 
                 const speedMultiplier = (isFastMode || isKeyboardShift) ? 15 : 1;
                 item.x += (dx * speedMultiplier); item.y += (dy * speedMultiplier); 
+                saveState(); rebuildOverlay(); 
+            }
+        }
+
+        function resizeItem(property, amount) {
+            if (!selectedId) return;
+            pushState();
+            const item = annotations.find(a => a.id === selectedId);
+            if (item) { 
+                const minVal = property === 'height' ? 5 : 12; 
+                item[property] = Math.max(minVal, item[property] + amount); 
                 saveState(); rebuildOverlay(); 
             }
         }
@@ -482,15 +518,31 @@
 
                 if (moved) { e.preventDefault(); } 
                 else if (e.key === 'Backspace' || e.key === 'Delete') { pushState(); deleteSelected(); }
+                // --- NEW SHORTCUTS: +/- RESIZING ---
+                else if (e.key === '+' || e.key === '=') {
+                    e.preventDefault();
+                    const item = annotations.find(a => a.id === selectedId);
+                    if (item) {
+                        if (item.type === 'text') resizeItem('size', 4);
+                        else {
+                            if (e.shiftKey) resizeItem('height', 5);
+                            else resizeItem('width', 15);
+                        }
+                    }
+                }
+                else if (e.key === '-' || e.key === '_') {
+                    e.preventDefault();
+                    const item = annotations.find(a => a.id === selectedId);
+                    if (item) {
+                        if (item.type === 'text') resizeItem('size', -4);
+                        else {
+                            if (e.shiftKey) resizeItem('height', -5);
+                            else resizeItem('width', -15);
+                        }
+                    }
+                }
             }
         });
-
-        function resizeItem(property, amount) {
-            if (!selectedId) return;
-            pushState();
-            const item = annotations.find(a => a.id === selectedId);
-            if (item) { item[property] = Math.max(12, item[property] + amount); saveState(); rebuildOverlay(); }
-        }
 
         function deleteSelected() {
             if (!selectedId) return;
@@ -518,7 +570,9 @@
                 if (item.type === 'text') {
                     page.drawText(item.text, { x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0) });
                 } else {
-                    const w = item.width / scale; const h = (20 * (scale/1.5)) / scale; const black = rgb(0,0,0); const thick = 1.5;
+                    const w = item.width / scale; 
+                    const h = item.height / scale; 
+                    const black = rgb(0,0,0); const thick = 1.5;
                     if (item.type === 'cresc') {
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });

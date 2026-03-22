@@ -2,45 +2,87 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sheet Music Annotator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sheet Music Annotator Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .toolbar { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; z-index: 10; }
-        button, .file-upload { padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer; font-size: 14px; transition: background 0.2s; }
-        button:hover, .file-upload:hover { background: #0056b3; }
-        .symbol-btn { background: #e4e4e7; color: #18181b; font-weight: bold; font-family: serif; font-size: 18px; }
-        .symbol-btn:hover { background: #d4d4d8; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; touch-action: manipulation; }
         
-        #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px;}
-        #pdf-canvas { display: block; }
+        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 10px; width: 100%; max-width: 900px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; box-sizing: border-box;}
+        .section { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        
+        button, .btn { padding: 10px 16px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 16px; font-weight: 500; transition: 0.2s; }
+        button:active, .btn:active { transform: scale(0.95); }
+        .btn-success { background: #10b981; }
+        .btn-danger { background: #ef4444; }
+        
+        input[type="text"] { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; width: 150px; }
+        
+        /* Music Symbols */
+        .symbol-btn { background: #e4e4e7; color: #18181b; font-family: Georgia, serif; font-size: 18px; font-style: italic; font-weight: bold; min-width: 45px; }
+        .shape-btn { background: #fde047; color: #854d0e; font-weight: bold; font-size: 18px; }
+        
+        #workspace { position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden; background: white; margin-bottom: 50px; max-width: 100%; overflow-x: auto;}
+        #pdf-canvas { display: block; max-width: 100%; height: auto; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
-        /* Draggable Symbols */
-        .draggable-symbol { position: absolute; cursor: grab; pointer-events: auto; user-select: none; font-family: serif; font-weight: bold; font-style: italic; color: red; /* Red so it stands out while editing */ transform: translate(-50%, -50%); border: 1px dashed transparent; padding: 5px; }
-        .draggable-symbol:hover { border-color: rgba(255,0,0,0.5); }
-        .draggable-symbol:active { cursor: grabbing; }
+        /* Draggable Items */
+        .draggable-item { position: absolute; pointer-events: auto; user-select: none; transform: translate(-50%, -50%); border: 2px dashed transparent; padding: 5px; cursor: grab; touch-action: none; display: flex; align-items: center; justify-content: center;}
+        .draggable-item.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); z-index: 100; }
+        
+        .type-text { font-family: Georgia, serif; font-weight: bold; font-style: italic; color: #b91c1c; white-space: nowrap; }
+        
+        /* Shapes */
+        .type-shape { width: 100px; height: 20px; }
+        svg { width: 100%; height: 100%; overflow: visible; }
+        path, line { stroke: #b91c1c; stroke-width: 2; fill: none; }
+        
+        #edit-controls { display: none; background: #bfdbfe; padding: 5px 10px; border-radius: 6px; }
+        #edit-controls.active { display: flex; }
     </style>
 </head>
 <body>
 
-    <div class="toolbar">
-        <input type="file" id="upload" accept="application/pdf" style="display: none;">
-        <label for="upload" class="file-upload">1. Upload PDF</label>
+    <div class="panel">
+        <div class="section">
+            <input type="file" id="upload" accept="application/pdf" style="display: none;">
+            <label for="upload" class="btn">📂 Open PDF</label>
+            <button class="btn btn-success" onclick="exportPDF()">💾 Save & Export</button>
+        </div>
+        <div class="section" id="pagination" style="display: none;">
+            <button onclick="changePage(-1)">◀</button>
+            <span id="page-info" style="font-weight: bold;">Page 1 / 1</span>
+            <button onclick="changePage(1)">▶</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="section">
+            <span style="font-size: 14px; font-weight: bold;">Text:</span>
+            <input type="text" id="customText" placeholder="e.g. legato">
+            <button onclick="addCustomText()">Add Text</button>
+            <button class="symbol-btn" onclick="addItem('text', 'p')">p</button>
+            <button class="symbol-btn" onclick="addItem('text', 'f')">f</button>
+            <button class="symbol-btn" onclick="addItem('text', 'rit.')">rit.</button>
+        </div>
         
-        <div style="width: 1px; height: 24px; background: #ccc; margin: 0 10px;"></div>
+        <div class="section">
+            <span style="font-size: 14px; font-weight: bold;">Shapes:</span>
+            <button class="shape-btn" onclick="addItem('cresc', '')">&lt;</button>
+            <button class="shape-btn" onclick="addItem('dim', '')">&gt;</button>
+            <button class="shape-btn" onclick="addItem('bracket', '')">┌─┐</button>
+        </div>
         
-        <span>2. Add Symbols:</span>
-        <button class="symbol-btn" onclick="addSymbol('p')">p</button>
-        <button class="symbol-btn" onclick="addSymbol('f')">f</button>
-        <button class="symbol-btn" onclick="addSymbol('>')">&gt;</button>
-        <button class="symbol-btn" onclick="addSymbol('rit.')">rit.</button>
-        
-        <div style="width: 1px; height: 24px; background: #ccc; margin: 0 10px;"></div>
-        
-        <button onclick="exportPDF()" style="background: #10b981;">3. Export PDF</button>
+        <div class="section" id="edit-controls">
+            <span style="font-size: 14px; font-weight: bold;">Edit:</span>
+            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', -4)">A-</button>
+            <button class="symbol-btn edit-text-only" onclick="resizeItem('size', 4)">A+</button>
+            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', -20)">↔-</button>
+            <button class="shape-btn edit-shape-only" onclick="resizeItem('width', 20)">↔+</button>
+            
+            <button class="btn btn-danger" onclick="deleteSelected()">🗑️</button>
+        </div>
     </div>
 
     <div id="workspace">
@@ -49,132 +91,217 @@
     </div>
 
     <script>
-        // Setup PDF.js worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        let originalPdfBytes = null;
         let pdfDoc = null;
-        let pdfPage = null;
-        let viewport = null;
-        const scale = 1.5; // Scale for better resolution
+        let originalPdfBytes = null;
+        let currentPageNum = 1;
+        let scale = 1.5;
+        let annotations = []; // { id, pageNum, type, text, x, y, size, width }
+        let selectedId = null;
 
         const canvas = document.getElementById('pdf-canvas');
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('overlay');
+        const editControls = document.getElementById('edit-controls');
 
-        // 1. Handle PDF Upload
         document.getElementById('upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
-            const arrayBuffer = await file.arrayBuffer();
-            originalPdfBytes = arrayBuffer; // Save for export later
-
-            // Render with PDF.js
-            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-            pdfDoc = await loadingTask.promise;
-            pdfPage = await pdfDoc.getPage(1); // Load page 1 for this prototype
-
-            viewport = pdfPage.getViewport({ scale: scale });
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            const renderContext = { canvasContext: ctx, viewport: viewport };
-            await pdfPage.render(renderContext).promise;
-            
-            // Clear existing symbols
-            overlay.innerHTML = '';
+            originalPdfBytes = await file.arrayBuffer();
+            pdfDoc = await pdfjsLib.getDocument({ data: originalPdfBytes }).promise;
+            document.getElementById('pagination').style.display = 'flex';
+            currentPageNum = 1; annotations = [];
+            renderPage(currentPageNum);
         });
 
-        // 2. Add Draggable Symbols
-        function addSymbol(text) {
-            if (!viewport) return alert("Please upload a PDF first!");
-
-            const el = document.createElement('div');
-            el.className = 'draggable-symbol';
-            el.innerText = text;
-            el.style.fontSize = '24px'; // Default size
-            
-            // Spawn in the middle of the canvas
-            el.style.left = (canvas.width / 2) + 'px';
-            el.style.top = (canvas.height / 2) + 'px';
-
-            // Dragging Logic
-            let isDragging = false;
-            let startX, startY, initialLeft, initialTop;
-
-            el.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                initialLeft = parseInt(el.style.left, 10);
-                initialTop = parseInt(el.style.top, 10);
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                el.style.left = `${initialLeft + dx}px`;
-                el.style.top = `${initialTop + dy}px`;
-            });
-
-            document.addEventListener('mouseup', () => { isDragging = false; });
-            
-            // Scroll to resize
-            el.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                let currentSize = parseInt(el.style.fontSize, 10);
-                if (e.deltaY < 0) currentSize += 2; // Scroll up -> larger
-                if (e.deltaY > 0 && currentSize > 10) currentSize -= 2; // Scroll down -> smaller
-                el.style.fontSize = currentSize + 'px';
-            });
-
-            overlay.appendChild(el);
+        async function renderPage(pageNum) {
+            if (!pdfDoc) return;
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: scale });
+            canvas.width = viewport.width; canvas.height = viewport.height;
+            workspace.style.width = viewport.width + 'px';
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            document.getElementById('page-info').innerText = `Page ${pageNum} / ${pdfDoc.numPages}`;
+            rebuildOverlay();
         }
 
-        // 3. Export to PDF
+        function changePage(offset) {
+            if (!pdfDoc) return;
+            let newPage = currentPageNum + offset;
+            if (newPage >= 1 && newPage <= pdfDoc.numPages) {
+                currentPageNum = newPage; selectedId = null;
+                updateEditControls(); renderPage(currentPageNum);
+            }
+        }
+
+        function addCustomText() {
+            const text = document.getElementById('customText').value;
+            if (text.trim() !== '') {
+                addItem('text', text);
+                document.getElementById('customText').value = ''; // Clear input
+            }
+        }
+
+        function addItem(type, text) {
+            if (!pdfDoc) return alert("Open a PDF first!");
+            const newItem = {
+                id: Date.now().toString(),
+                pageNum: currentPageNum,
+                type: type,
+                text: text,
+                x: canvas.width / 2,
+                y: canvas.height / 3,
+                size: 24, // for text
+                width: 100 // for shapes
+            };
+            annotations.push(newItem);
+            selectItem(newItem.id);
+            rebuildOverlay();
+        }
+
+        function rebuildOverlay() {
+            overlay.innerHTML = '';
+            const pageItems = annotations.filter(a => a.pageNum === currentPageNum);
+            
+            pageItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'draggable-item';
+                if (item.id === selectedId) el.classList.add('selected');
+                el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
+                
+                if (item.type === 'text') {
+                    el.classList.add('type-text');
+                    el.innerText = item.text;
+                    el.style.fontSize = `${item.size}px`;
+                } else {
+                    el.classList.add('type-shape');
+                    el.style.width = `${item.width}px`;
+                    // Generate SVGs for shapes
+                    let svgInner = '';
+                    if (item.type === 'cresc') {
+                        svgInner = `<line x1="0" y1="50%" x2="100%" y2="0%" /><line x1="0" y1="50%" x2="100%" y2="100%" />`;
+                    } else if (item.type === 'dim') {
+                        svgInner = `<line x1="0" y1="0%" x2="100%" y2="50%" /><line x1="0" y1="100%" x2="100%" y2="50%" />`;
+                    } else if (item.type === 'bracket') {
+                        svgInner = `<polyline points="0,20 0,0 100%,0 100%,20" />`;
+                    }
+                    el.innerHTML = `<svg preserveAspectRatio="none">${svgInner}</svg>`;
+                }
+
+                // Dragging logic
+                let isDragging = false;
+                el.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); isDragging = true;
+                    el.setPointerCapture(e.pointerId);
+                    selectItem(item.id);
+                });
+                el.addEventListener('pointermove', (e) => {
+                    if (!isDragging) return;
+                    item.x += e.movementX; item.y += e.movementY;
+                    el.style.left = `${item.x}px`; el.style.top = `${item.y}px`;
+                });
+                el.addEventListener('pointerup', (e) => {
+                    isDragging = false; el.releasePointerCapture(e.pointerId);
+                });
+                overlay.appendChild(el);
+            });
+        }
+
+        function selectItem(id) {
+            selectedId = id;
+            rebuildOverlay(); updateEditControls();
+        }
+
+        function updateEditControls() {
+            if (!selectedId) {
+                editControls.classList.remove('active');
+                return;
+            }
+            editControls.classList.add('active');
+            const item = annotations.find(a => a.id === selectedId);
+            
+            // Show/Hide specific buttons based on type
+            const textBtns = document.querySelectorAll('.edit-text-only');
+            const shapeBtns = document.querySelectorAll('.edit-shape-only');
+            
+            if (item.type === 'text') {
+                textBtns.forEach(b => b.style.display = 'inline-block');
+                shapeBtns.forEach(b => b.style.display = 'none');
+            } else {
+                textBtns.forEach(b => b.style.display = 'none');
+                shapeBtns.forEach(b => b.style.display = 'inline-block');
+            }
+        }
+
+        function resizeItem(property, amount) {
+            if (!selectedId) return;
+            const item = annotations.find(a => a.id === selectedId);
+            if (item) {
+                item[property] = Math.max(10, item[property] + amount); // Min size/width is 10
+                rebuildOverlay();
+            }
+        }
+
+        function deleteSelected() {
+            if (!selectedId) return;
+            annotations = annotations.filter(a => a.id !== selectedId);
+            selectedId = null; updateEditControls(); rebuildOverlay();
+        }
+
+        canvas.addEventListener('pointerdown', () => {
+            selectedId = null; rebuildOverlay(); updateEditControls();
+        });
+
+        // Export PDF with native shapes
         async function exportPDF() {
             if (!originalPdfBytes) return alert("No PDF loaded!");
-
             const { PDFDocument, rgb } = PDFLib;
-            // Load the original bytes to preserve quality and layout
-            const pdfDoc = await PDFDocument.load(originalPdfBytes);
-            const pages = pdfDoc.getPages();
-            const page = pages[0]; // Assuming page 1
+            const pdfDocLib = await PDFDocument.load(originalPdfBytes);
+            const pages = pdfDocLib.getPages();
 
-            const symbols = document.querySelectorAll('.draggable-symbol');
-            
-            symbols.forEach(el => {
-                const text = el.innerText;
-                const fontSizePx = parseInt(el.style.fontSize, 10);
+            for (const item of annotations) {
+                const pageIndex = item.pageNum - 1;
+                if (pageIndex >= pages.length) continue;
+                const page = pages[pageIndex];
                 
-                // Map DOM pixels to PDF points
-                const domX = parseFloat(el.style.left);
-                const domY = parseFloat(el.style.top);
+                const pdfjsPage = await pdfDoc.getPage(item.pageNum);
+                const viewport = pdfjsPage.getViewport({ scale: scale });
                 
-                // PDF coordinates: (0,0) is bottom-left. DOM coordinates: (0,0) is top-left.
-                const pdfX = (domX / viewport.width) * page.getWidth();
-                // We subtract from page height to flip the Y axis
-                const pdfY = page.getHeight() - ((domY / viewport.height) * page.getHeight());
-                
-                // Scale font size based on viewport zoom
-                const pdfFontSize = fontSizePx / scale;
+                const pdfX = (item.x / viewport.width) * page.getWidth();
+                const pdfY = page.getHeight() - ((item.y / viewport.height) * page.getHeight());
 
-                page.drawText(text, {
-                    x: pdfX,
-                    y: pdfY,
-                    size: pdfFontSize,
-                    color: rgb(0, 0, 0), // Draw it black on the final PDF
-                });
-            });
+                if (item.type === 'text') {
+                    page.drawText(item.text, {
+                        x: pdfX, y: pdfY, size: item.size / scale, color: rgb(0,0,0)
+                    });
+                } else {
+                    // Export Shapes natively drawing lines on the PDF
+                    const w = item.width / scale;
+                    const h = 20 / scale; // Default shape height
+                    const black = rgb(0,0,0);
+                    const thick = 1.5;
 
-            // Serialize and download
-            const pdfBytes = await pdfDoc.save();
+                    // Note: pdfX/pdfY represent the center of the shape
+                    if (item.type === 'cresc') {
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY - h/2}, thickness: thick, color: black });
+                    } else if (item.type === 'dim') {
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY - h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
+                    } else if (item.type === 'bracket') {
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX - w/2, y: pdfY + h/2}, end: {x: pdfX - w/2, y: pdfY}, thickness: thick, color: black });
+                        page.drawLine({ start: {x: pdfX + w/2, y: pdfY + h/2}, end: {x: pdfX + w/2, y: pdfY}, thickness: thick, color: black });
+                    }
+                }
+            }
+
+            const pdfBytes = await pdfDocLib.save();
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = "Annotated_Sheet_Music.pdf";
+            link.download = "Annotated_Score_Pro.pdf";
             link.click();
         }
     </script>

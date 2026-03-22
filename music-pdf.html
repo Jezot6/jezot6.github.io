@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <style>
-        /* Base App Setup - Native App Feel */
+        /* Base App Setup */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; overscroll-behavior-y: none;}
         
         #app-container { display: flex; flex-direction: column; width: 100%; height: 100%; }
@@ -17,15 +17,16 @@
         
         .top-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
         .control-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .help-touch-wrapper { display: flex; gap: 8px; width: 100%; } /* Prevents landscape stretching */
         
         button, .btn { padding: 8px 14px; border: none; border-radius: 6px; background: #3b82f6; color: white; cursor: pointer; font-size: 15px; font-weight: 500; transition: 0.1s; touch-action: manipulation; }
         button:active, .btn:active { transform: scale(0.95); }
         .btn-success { background: #10b981; }
         .btn-danger { background: #ef4444; }
         .btn-warning { background: #f59e0b; color: #fff; }
-        .btn-toggle { background: #64748b; }
+        .btn-toggle { background: #64748b; flex-grow: 1; }
         .btn-toggle.active { background: #f59e0b; color: #000; font-weight: bold; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3); }
-        .btn-help { background: #475569; padding: 8px 12px; border-radius: 50%; font-weight: bold; }
+        .btn-help { background: #475569; border-radius: 50%; font-weight: bold; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center; padding: 0; flex-shrink: 0; }
         
         select.dropdown-tool { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 15px; font-weight: bold; color: #0f172a; cursor: pointer; outline: none; flex-grow: 1; }
         select.dropdown-tool:focus { border-color: #3b82f6; }
@@ -60,8 +61,8 @@
         .touch-locked { touch-action: none !important; }
         
         /* Canvas Context */
-        #workspace { position: relative; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        #pdf-canvas { display: block; max-width: 100%; height: auto; }
+        #workspace { position: relative; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform-origin: top left; }
+        #pdf-canvas { display: block; } /* Removed max-width to ensure exact pixel mapping */
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         
         .draggable-item { 
@@ -185,12 +186,14 @@
                         <b>'</b> = Text | <b>13579</b> = Colors<br>
                         Press <b>Enter</b> to clear UI focus
                     </span>
-                    <button class="btn btn-help" onclick="toggleHelp()" title="Keyboard Shortcuts">?</button>
-                    <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
+                    <div class="help-touch-wrapper">
+                        <button class="btn btn-help" onclick="toggleHelp()" title="Keyboard Shortcuts">?</button>
+                        <button id="touchToggleBtn" class="btn btn-toggle" onclick="toggleTouchMode()">👆 Touch Mode: OFF</button>
+                    </div>
                     
-                    <div id="pagination" style="display: none; gap: 5px; align-items: center;">
+                    <div id="pagination" style="display: none; gap: 5px; align-items: center; width: 100%;">
                         <button onclick="changePage(-1)">◀</button>
-                        <span id="page-info" style="font-weight: bold; font-size: 14px;">1 / 1</span>
+                        <span id="page-info" style="font-weight: bold; font-size: 14px; text-align: center; flex-grow: 1;">1 / 1</span>
                         <button onclick="changePage(1)">▶</button>
                     </div>
                 </div>
@@ -540,7 +543,7 @@
             if (['cresc', 'dim', 'bracket', 'slur-top', 'slur-bottom'].includes(val)) { addItem(val, ''); } 
             else { addItem('text', val); }
             selectElement.selectedIndex = 0; 
-            selectElement.blur(); // Drop focus after selection!
+            selectElement.blur(); 
         }
 
         function addCustomText() {
@@ -680,15 +683,10 @@
         // Global Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             
-            // The "Enter" Escape Hatch
             if (e.key === 'Enter') {
-                document.activeElement.blur(); // Drops focus from buttons/inputs
-                
-                // If the help menu is open, close it on Enter
+                document.activeElement.blur();
                 const helpModal = document.getElementById('helpModal');
-                if (helpModal.style.display === 'block') {
-                    toggleHelp();
-                }
+                if (helpModal.style.display === 'block') toggleHelp();
             }
 
             const activeTag = document.activeElement.tagName;
@@ -719,9 +717,7 @@
             }
 
             if (['1', '3', '5', '7', '9'].includes(e.key)) {
-                e.preventDefault();
-                setActivePalette(e.key);
-                return;
+                e.preventDefault(); setActivePalette(e.key); return;
             }
 
             if (!isCtrl && !e.altKey && pdfDoc) {
@@ -747,9 +743,7 @@
                 };
                 
                 if (keyMap[keyStr]) { 
-                    e.preventDefault(); 
-                    addItem(keyMap[keyStr].type, keyMap[keyStr].val); 
-                    return; 
+                    e.preventDefault(); addItem(keyMap[keyStr].type, keyMap[keyStr].val); return; 
                 }
             }
 
@@ -822,21 +816,38 @@
                 
                 const pdfjsPage = await pdfDoc.getPage(item.pageNum);
                 const viewport = pdfjsPage.getViewport({ scale: scale });
+                const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
                 
-                const pdfX = (item.x / viewport.width) * page.getWidth();
-                const pdfY = page.getHeight() - ((item.y / viewport.height) * page.getHeight());
+                // Calculate exact ratios between HTML workspace and native PDF points
+                const ratioX = pdfPageWidth / viewport.width;
+                const ratioY = pdfPageHeight / viewport.height;
+                
+                // Map coordinates using the explicit ratio
+                const pdfX = item.x * ratioX;
+                const pdfY = pdfPageHeight - (item.y * ratioY);
 
                 const colorVal = hexToRgb(item.color || '#b91c1c');
                 const pdfColor = rgb(colorVal.r, colorVal.g, colorVal.b);
 
                 if (item.type === 'text') {
-                    const fontSize = item.size / scale;
+                    // Scale font and map height perfectly
+                    const fontSize = item.size * ratioY;
                     const textWidth = boldItalicFont.widthOfTextAtSize(item.text, fontSize);
-                    const textHeight = boldItalicFont.heightAtSize(fontSize);
                     
-                    page.drawText(item.text, { x: pdfX - (textWidth / 2), y: pdfY - (textHeight / 3), size: fontSize, font: boldItalicFont, color: pdfColor });
+                    // Adjust Baseline: HTML centers text strictly. PDF draws text from the bottom baseline.
+                    const baselineOffset = fontSize * 0.28; 
+                    
+                    page.drawText(item.text, { 
+                        x: pdfX - (textWidth / 2), 
+                        y: pdfY - baselineOffset, 
+                        size: fontSize, 
+                        font: boldItalicFont, 
+                        color: pdfColor 
+                    });
                 } else {
-                    const w = item.width / scale; const h = item.height / scale; const thick = 1.5;
+                    const w = item.width * ratioX; 
+                    const h = item.height * ratioY; 
+                    const thick = 1.5;
                     
                     if (item.type === 'cresc') {
                         page.drawLine({ start: {x: pdfX - w/2, y: pdfY}, end: {x: pdfX + w/2, y: pdfY + h/2}, thickness: thick, color: pdfColor });

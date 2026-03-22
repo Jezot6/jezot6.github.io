@@ -800,8 +800,7 @@
             }
             return { r: r/255, g: g/255, b: b/255 };
         }
-
-        async function exportPDF() {
+async function exportPDF() {
             if (!originalPdfBytes) return alert("No PDF loaded!");
             
             const { PDFDocument, rgb, StandardFonts } = PDFLib;
@@ -814,39 +813,38 @@
                 if (pageIndex >= pages.length) continue;
                 const page = pages[pageIndex];
                 
+                // Get the viewport to handle exact coordinate translations
                 const pdfjsPage = await pdfDoc.getPage(item.pageNum);
                 const viewport = pdfjsPage.getViewport({ scale: scale });
-                const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
                 
-                // Calculate exact ratios between HTML workspace and native PDF points
-                const ratioX = pdfPageWidth / viewport.width;
-                const ratioY = pdfPageHeight / viewport.height;
+                // 1. The Magic Bullet: Let PDF.js calculate the exact PDF coordinates
+                // This automatically accounts for internal PDF margins, crop boxes, and rotations
+                const [pdfX, pdfY] = viewport.convertToPdfPoint(item.x, item.y);
                 
-                // Map coordinates using the explicit ratio
-                const pdfX = item.x * ratioX;
-                const pdfY = pdfPageHeight - (item.y * ratioY);
+                // 2. Calculate the exact scaling factor for widths, heights, and fonts
+                const pScale = 1 / viewport.scale;
 
                 const colorVal = hexToRgb(item.color || '#b91c1c');
                 const pdfColor = rgb(colorVal.r, colorVal.g, colorVal.b);
 
                 if (item.type === 'text') {
-                    // Scale font and map height perfectly
-                    const fontSize = item.size * ratioY;
+                    const fontSize = item.size * pScale;
                     const textWidth = boldItalicFont.widthOfTextAtSize(item.text, fontSize);
+                    const textHeight = boldItalicFont.heightAtSize(fontSize);
                     
-                    // Adjust Baseline: HTML centers text strictly. PDF draws text from the bottom baseline.
-                    const baselineOffset = fontSize * 0.28; 
+                    // Adjust Baseline: Centers the text vertically to match HTML's flex centering
+                    const baselineY = pdfY - (textHeight * 0.25); 
                     
                     page.drawText(item.text, { 
                         x: pdfX - (textWidth / 2), 
-                        y: pdfY - baselineOffset, 
+                        y: baselineY, 
                         size: fontSize, 
                         font: boldItalicFont, 
                         color: pdfColor 
                     });
                 } else {
-                    const w = item.width * ratioX; 
-                    const h = item.height * ratioY; 
+                    const w = item.width * pScale; 
+                    const h = item.height * pScale; 
                     const thick = 1.5;
                     
                     if (item.type === 'cresc') {

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CalcStudio — AP Calculus Study Companion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { primary: '#2563eb' } } }
+    }
+  </script>
+  <style>
+    body { touch-action: none; }
+    #board-container { overflow: hidden; position: relative; cursor: crosshair; }
+    .pan-mode { cursor: grab !important; }
+    .pan-mode:active { cursor: grabbing !important; }
+    .annotation { position: absolute; transform: translate(-50%, -100%); pointer-events: none; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans transition-colors duration-200">
+
+  <header class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 shadow-sm z-10">
+    <div class="flex items-center space-x-3">
+      <i class="fa-solid fa-infinity text-primary text-2xl"></i>
+      <h1 class="text-xl font-bold">CalcStudio</h1>
+      <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded-full">AP Calculus BC</span>
+    </div>
+    <div class="flex items-center space-x-4">
+      <div id="status-indicator" class="text-sm text-gray-500 hidden">
+        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i><span id="status-text">Writing questions...</span>
+      </div>
+      <button onclick="toggleTheme()" class="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
+        <i class="fa-solid fa-moon dark:hidden"></i>
+        <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <main id="setup-view" class="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full">
+    <h2 class="text-2xl font-bold mb-6">Create New Problem Set</h2>
+
+    <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 p-6 mb-6">
+      <h3 class="text-lg font-semibold mb-2"><i class="fa-solid fa-key text-blue-500 mr-2"></i>Gemini API Key</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Enter your Google Gemini API key to power the generation and grading. This is saved locally in your browser.</p>
+      <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <h3 class="text-lg font-semibold mb-4">Select Topics (College Board CED)</h3>
+      <div id="topic-tree" class="space-y-4">
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
+      <div class="w-1/2">
+        <label class="block text-sm font-medium mb-2">Number of Questions: <span id="num-q-label">3</span></label>
+        <input type="range" id="num-questions" min="1" max="10" value="3" class="w-full" oninput="document.getElementById('num-q-label').innerText = this.value">
+      </div>
+      <button onclick="startPractice()" id="btn-generate" class="bg-primary hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Generate Question Set
+      </button>
+    </div>
+  </main>
+
+  <main id="practice-view" class="hidden flex-1 flex overflow-hidden">
+    <aside class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col hidden md:flex">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 font-semibold">AI Assistant</div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+        <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg rounded-tl-none">Hello! I'm your AI tutor. Draw your steps clearly on the board, and I'll review them when you submit!</div>
+      </div>
+    </aside>
+
+    <section class="flex-1 flex flex-col relative">
+      <div class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 p-4 z-10">
+        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2 font-mono">
+          <span id="q-meta">Unit 0 • Loading...</span>
+          <span id="q-diff" class="uppercase tracking-wider"></span>
+        </div>
+        <div id="q-prompt" class="text-lg font-medium text-center">Writing your first question...</div>
+      </div>
+
+      <div class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 shadow-md rounded-lg flex flex-col p-2 space-y-3 z-10 border border-gray-200 dark:border-gray-700">
+        <button onclick="setTool('pen')" id="tool-pen" class="p-2 rounded bg-blue-100 dark:bg-blue-900 text-primary"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="setTool('eraser')" id="tool-eraser" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-eraser"></i></button>
+        <button onclick="setTool('pan')" id="tool-pan" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-hand"></i></button>
+        <hr class="border-gray-200 dark:border-gray-700">
+        <button onclick="zoomBoard(1.2)" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+        <button onclick="zoomBoard(0.8)" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+        <button onclick="resetView()" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-expand"></i></button>
+      </div>
+
+      <div id="board-container" class="flex-1 bg-gray-50 dark:bg-gray-900 w-full h-full relative">
+        <canvas id="grid-canvas" class="absolute inset-0 z-0"></canvas>
+        <canvas id="drawing-canvas" class="absolute inset-0 z-10"></canvas>
+        <div id="annotations-layer" class="absolute inset-0 z-20 pointer-events-none origin-top-left"></div>
+      </div>
+    </section>
+
+    <aside class="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col hidden lg:flex">
+      <div class="h-1/3 border-b border-gray-200 dark:border-gray-700 flex flex-col">
+        <div class="p-4 font-semibold border-b border-gray-200 dark:border-gray-700 flex justify-between">
+          <span>Questions</span>
+          <button onclick="abortPractice()" class="text-xs text-red-500 hover:underline">New Set</button>
+        </div>
+        <div id="q-navigator" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+      </div>
+      
+      <div class="flex-1 p-6 flex flex-col">
+        <h3 class="font-semibold mb-4">Actions</h3>
+        <button onclick="getHint()" class="w-full mb-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 py-2 rounded font-medium transition-colors">
+          <i class="fa-solid fa-lightbulb mr-2 text-yellow-500"></i> Get a Hint
+        </button>
+        <button id="btn-submit" onclick="submitWork()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded font-bold shadow-md transition-colors disabled:opacity-50">
+          <i class="fa-solid fa-check-double mr-2"></i> Submit for Review
+        </button>
+        
+        <div id="feedback-content" class="mt-6 flex-1 overflow-y-auto hidden">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-2">AI Feedback</h4>
+          <div id="feedback-text" class="text-sm space-y-4"></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    /* ==========================================
+       CURRICULUM & INIT
+       ========================================== */
+    const AP_CALCULUS_BC_UNITS = [
+      {
+        number: 6, title: "Integration and Accumulation of Change", weight: "17-20%",
+        topics: [
+          { code: "6.9", title: "Integration by Parts" },
+          { code: "6.14", title: "Selecting Techniques for Antidifferentiation" }
+        ]
+      },
+      {
+        number: 10, title: "Infinite Sequences and Series", weight: "17-18%",
+        topics: [
+          { code: "10.11", title: "Finding Taylor Polynomial Approximations of Functions" },
+          { code: "10.14", title: "Finding Taylor or Maclaurin Series for a Function" }
+        ]
+      }
+    ];
+
+    let selectedTopics = [];
+
+    function initSetup() {
+      // Load saved API Key
+      const savedKey = localStorage.getItem('gemini_api_key');
+      if (savedKey) document.getElementById('api-key-input').value = savedKey;
+
+      const tree = document.getElementById('topic-tree');
+      tree.innerHTML = AP_CALCULUS_BC_UNITS.map(u => `
+        <div class="border rounded p-3 dark:border-gray-700">
+          <div class="flex items-center font-bold mb-2">
+            <input type="checkbox" class="unit-cb mr-2" data-unit="${u.number}" onchange="toggleUnit(this)">
+            Unit ${u.number}: ${u.title} <span class="ml-auto text-xs font-normal text-gray-500">${u.weight}</span>
+          </div>
+          <div class="pl-6 space-y-1">
+            ${u.topics.map(t => `
+              <label class="flex items-center text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded">
+                <input type="checkbox" class="topic-cb mr-2" value="${t.code}" data-unit="${u.number}" onchange="updateSelection()">
+                ${t.code} — ${t.title}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleUnit(checkbox) {
+      const unit = checkbox.getAttribute('data-unit');
+      document.querySelectorAll(`.topic-cb[data-unit="${unit}"]`).forEach(cb => cb.checked = checkbox.checked);
+      updateSelection();
+    }
+
+    function updateSelection() {
+      selectedTopics = Array.from(document.querySelectorAll('.topic-cb:checked')).map(cb => cb.value);
+      document.getElementById('btn-generate').disabled = selectedTopics.length === 0;
+    }
+
+    /* ==========================================
+       REAL LLM INTEGRATION (Gemini REST API)
+       ========================================== */
+    function getApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (key) localStorage.setItem('gemini_api_key', key);
+      return key;
+    }
+
+    async function callGeminiAPI(prompt, base64Image = null) {
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error("API Key is missing!");
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      
+      const contents = [{ parts: [{ text: prompt }] }];
+      
+      if (base64Image) {
+        // Strip the data URL prefix to get raw base64
+        const base64Data = base64Image.split(',')[1];
+        contents[0].parts.push({
+          inlineData: { mimeType: "image/jpeg", data: base64Data }
+        });
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || "API request failed");
+      }
+
+      const data = await response.json();
+      const rawText = data.candidates[0].content.parts[0].text;
+      return JSON.parse(rawText);
+    }
+
+    async function generateSingleQuestion(topicCode, difficulty) {
+      const prompt = `You are an expert AP Calculus BC teacher. Write ONE free-response style question for College Board CED Topic ${topicCode}. 
+      Difficulty should be: ${difficulty}. 
+      Return strictly a JSON object with this schema:
+      {
+        "prompt": "The math problem text (plain text, no latex)",
+        "unit": number,
+        "topic_code": "${topicCode}",
+        "difficulty": "${difficulty}",
+        "solution": "Step by step solution in plain text"
+      }`;
+      return await callGeminiAPI(prompt);
+    }
+
+    async function reviewWorkAPI(question, base64Image) {
+      const prompt = `You are an AP Calculus BC grader. Review the student's handwritten work in the provided image for this question: "${question.prompt}".
+      The correct solution should be: "${question.solution}".
+      Find any errors in their logic, arithmetic, or calculus. 
+      Return strictly a JSON object with this schema:
+      {
+        "correct": boolean,
+        "feedback": "2-3 sentences of encouraging but direct feedback pointing out specific errors or praising correct methodology.",
+        "annotations": [
+          { "text": "Short note about the error (e.g. 'forgot +C' or 'sign error')", "x": number (0-100 percentage of width where error is), "y": number (0-100 percentage of height where error is) }
+        ]
+      }
+      If the work is completely correct, the annotations array should be empty.`;
+      
+      return await callGeminiAPI(prompt, base64Image);
+    }
+
+    /* ==========================================
+       STATE & APP LOGIC
+       ========================================== */
+    let problemSet = { questions: [] };
+    let currentIdx = 0;
+    let workByIndex = {}; 
+    let backgroundGenActive = false;
+    let isReviewing = false;
+
+    async function waitIfPaused() {
+      while (isReviewing || !backgroundGenActive) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    async function startPractice() {
+      if (!getApiKey()) {
+        alert("Please enter your Gemini API key first.");
+        return;
+      }
+      
+      const numQuestions = parseInt(document.getElementById('num-questions').value);
+      document.getElementById('setup-view').classList.add('hidden');
+      document.getElementById('practice-view').classList.remove('hidden');
+      
+      problemSet = { num_questions: numQuestions, questions: [] };
+      currentIdx = 0;
+      workByIndex = {};
+      strokes = []; 
+      backgroundGenActive = true;
+      isReviewing = false;
+      
+      updateNavigator();
+      document.getElementById('status-indicator').classList.remove('hidden');
+
+      for (let i = 0; i < numQuestions; i++) {
+        if (!backgroundGenActive) break;
+        await waitIfPaused();
+        
+        document.getElementById('status-text').innerText = `Writing question ${i+1} of ${numQuestions}...`;
+        
+        const topic = selectedTopics[i % selectedTopics.length];
+        const difficulties = ["easy", "medium", "hard"];
+        
+        try {
+          const q = await generateSingleQuestion(topic, difficulties[i % 3]);
+          problemSet.questions.push(q);
+          workByIndex[i] = { strokes: [], feedback: null };
+          
+          updateNavigator();
+          if (i === 0) loadQuestion(0);
+        } catch (error) {
+          console.error("Failed to generate question:", error);
+          if (i === 0) {
+            alert("Failed to generate the first question. Check your API key and quota.");
+            abortPractice();
+            return;
+          }
+        }
+      }
+      
+      document.getElementById('status-indicator').classList.add('hidden');
+    }
+
+    function abortPractice() {
+      backgroundGenActive = false;
+      document.getElementById('practice-view').classList.add('hidden');
+      document.getElementById('setup-view').classList.remove('hidden');
+    }
+
+    function loadQuestion(index) {
+      currentIdx = index;
+      const q = problemSet.questions[index];
+      
+      document.getElementById('q-meta').innerText = `Unit ${q.unit} • ${q.topic_code}`;
+      document.getElementById('q-diff').innerText = q.difficulty;
+      document.getElementById('q-diff').className = `uppercase tracking-wider font-bold ${q.difficulty === 'hard' ? 'text-red-500' : q.difficulty === 'medium' ? 'text-yellow-500' : 'text-green-500'}`;
+      document.getElementById('q-prompt').innerText = q.prompt;
+
+      strokes = workByIndex[index]?.strokes || [];
+      const feedback = workByIndex[index]?.feedback;
+      
+      feedback ? showFeedbackUI(feedback) : hideFeedbackUI();
+      
+      resetView();
+      updateNavigator();
+    }
+
+    function selectQuestion(index) {
+      if (index >= problemSet.questions.length) return;
+      if (workByIndex[currentIdx]) workByIndex[currentIdx].strokes = [...strokes];
+      loadQuestion(index);
+    }
+
+    function updateNavigator() {
+      const nav = document.getElementById('q-navigator');
+      nav.innerHTML = Array.from({length: problemSet.num_questions}).map((_, i) => {
+        const q = problemSet.questions[i];
+        const isCurrent = i === currentIdx;
+        const isReady = !!q;
+        const work = workByIndex[i];
+        const statusIcon = !isReady ? '<i class="fa-solid fa-spinner fa-spin text-gray-400"></i>' : 
+                           work?.feedback ? (work.feedback.correct ? '<i class="fa-solid fa-check text-green-500"></i>' : '<i class="fa-solid fa-xmark text-red-500"></i>') :
+                           '<i class="fa-regular fa-circle text-gray-300"></i>';
+                           
+        return `
+          <button onclick="selectQuestion(${i})" class="w-full text-left p-2 rounded flex items-center justify-between ${isCurrent ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} ${!isReady ? 'opacity-50 cursor-not-allowed' : ''}" ${!isReady ? 'disabled' : ''}>
+            <span class="text-sm font-medium">Q${i+1} ${q ? `<span class="text-xs text-gray-500 ml-2">${q.topic_code}</span>` : ''}</span>
+            ${statusIcon}
+          </button>
+        `;
+      }).join('');
+    }
+
+    async function submitWork() {
+      if (isReviewing || !problemSet.questions[currentIdx]) return;
+      
+      const btn = document.getElementById('btn-submit');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Reviewing...';
+      btn.disabled = true;
+      
+      isReviewing = true;
+      if (workByIndex[currentIdx]) workByIndex[currentIdx].strokes = [...strokes];
+      
+      // Export canvas state as a base64 JPEG for the AI
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = drawCanvas.width;
+      exportCanvas.height = drawCanvas.height;
+      const exCtx = exportCanvas.getContext('2d');
+      exCtx.fillStyle = '#ffffff';
+      exCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      exCtx.drawImage(drawCanvas, 0, 0);
+      const base64Image = exportCanvas.toDataURL('image/jpeg', 0.8);
+      
+      try {
+        const result = await reviewWorkAPI(problemSet.questions[currentIdx], base64Image);
+        
+        // Include the official solution text in the feedback UI for the user to compare
+        result.official_solution = problemSet.questions[currentIdx].solution;
+        workByIndex[currentIdx].feedback = result;
+        showFeedbackUI(result);
+      } catch (error) {
+        console.error(error);
+        alert("Failed to review work. Error: " + error.message);
+      }
+      
+      isReviewing = false;
+      updateNavigator();
+      
+      btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i> Submit for Review';
+      btn.disabled = false;
+    }
+
+    function showFeedbackUI(feedback) {
+      document.getElementById('feedback-content').classList.remove('hidden');
+      document.getElementById('feedback-text').innerHTML = `
+        <div class="p-3 rounded ${feedback.correct ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'b

@@ -18,107 +18,126 @@
     .pan-mode { cursor: grab !important; }
     .pan-mode:active { cursor: grabbing !important; }
     .annotation { position: absolute; transform: translate(-50%, -100%); pointer-events: none; }
+    
+    /* Custom scrollbar for better UI */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 h-screen flex flex-col font-sans transition-colors duration-200">
 
-  <header class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 shadow-sm z-10">
+  <header class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 shadow-sm z-10 border-b border-gray-200 dark:border-gray-700">
     <div class="flex items-center space-x-3">
       <i class="fa-solid fa-infinity text-primary text-2xl"></i>
-      <h1 class="text-xl font-bold">CalcStudio</h1>
-      <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded-full">AP Calculus BC</span>
+      <h1 class="text-xl font-bold tracking-tight">CalcStudio</h1>
+      <span class="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 px-2.5 py-1 rounded-full font-medium">AP Calculus BC</span>
     </div>
     <div class="flex items-center space-x-4">
-      <div id="status-indicator" class="text-sm text-gray-500 hidden">
-        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i><span id="status-text">Writing questions...</span>
+      <div id="status-indicator" class="text-sm text-gray-500 dark:text-gray-400 hidden flex items-center bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
+        <i class="fa-solid fa-circle-notch fa-spin mr-2 text-primary"></i>
+        <span id="status-text">Writing questions...</span>
       </div>
-      <button onclick="toggleTheme()" class="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
-        <i class="fa-solid fa-moon dark:hidden"></i>
+      <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+        <i class="fa-solid fa-moon dark:hidden text-gray-600"></i>
         <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
       </button>
     </div>
   </header>
 
-  <main id="setup-view" class="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full">
+  <main id="setup-view" class="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full">
     <h2 class="text-2xl font-bold mb-6">Create New Problem Set</h2>
 
-    <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 p-6 mb-6">
-      <h3 class="text-lg font-semibold mb-2"><i class="fa-solid fa-key text-blue-500 mr-2"></i>Gemini API Key</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Enter your Google Gemini API key to power the generation and grading. This is saved locally in your browser.</p>
-      <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800/50 p-6 mb-6 shadow-sm">
+      <h3 class="text-lg font-semibold mb-2 flex items-center">
+        <i class="fa-solid fa-key text-blue-500 mr-2"></i>Google Gemini API Key
+      </h3>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        Enter your API key to power AI question generation and vision grading. It saves locally to your browser.
+      </p>
+      <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary shadow-inner">
     </div>
     
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <h3 class="text-lg font-semibold mb-4">Select Topics (College Board CED)</h3>
-      <div id="topic-tree" class="space-y-4">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Select Curriculum Topics</h3>
+        <span class="text-xs text-gray-500">Source: College Board CED</span>
+      </div>
+      <div id="topic-tree" class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
         </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center">
-      <div class="w-1/2">
-        <label class="block text-sm font-medium mb-2">Number of Questions: <span id="num-q-label">3</span></label>
-        <input type="range" id="num-questions" min="1" max="10" value="3" class="w-full" oninput="document.getElementById('num-q-label').innerText = this.value">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="w-full md:w-1/2">
+        <label class="block text-sm font-medium mb-3">Number of Questions: <span id="num-q-label" class="text-primary font-bold text-lg ml-1">3</span></label>
+        <input type="range" id="num-questions" min="1" max="10" value="3" class="w-full accent-primary" oninput="document.getElementById('num-q-label').innerText = this.value">
       </div>
-      <button onclick="startPractice()" id="btn-generate" class="bg-primary hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+      <button onclick="startPractice()" id="btn-generate" disabled class="w-full md:w-auto bg-primary hover:bg-blue-700 text-white px-8 py-3.5 rounded-lg font-semibold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
         Generate Question Set
       </button>
     </div>
   </main>
 
   <main id="practice-view" class="hidden flex-1 flex overflow-hidden">
-    <aside class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col hidden md:flex">
-      <div class="p-4 border-b border-gray-200 dark:border-gray-700 font-semibold">AI Assistant</div>
+    <aside class="w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col hidden md:flex z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700 font-semibold flex items-center">
+        <i class="fa-solid fa-robot text-primary mr-2"></i> AI Assistant
+      </div>
       <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
-        <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg rounded-tl-none">Hello! I'm your AI tutor. Draw your steps clearly on the board, and I'll review them when you submit!</div>
+        <div class="bg-gray-100 dark:bg-gray-700/50 p-3.5 rounded-xl rounded-tl-none border border-gray-200 dark:border-gray-600 shadow-sm">
+          Hello! I'm your AI tutor. Draw your steps clearly on the board, and I'll review them when you submit!
+        </div>
       </div>
     </aside>
 
-    <section class="flex-1 flex flex-col relative">
-      <div class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 p-4 z-10">
-        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2 font-mono">
-          <span id="q-meta">Unit 0 • Loading...</span>
-          <span id="q-diff" class="uppercase tracking-wider"></span>
+    <section class="flex-1 flex flex-col relative bg-gray-50 dark:bg-gray-900">
+      <div class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-3xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-lg rounded-xl border border-gray-200 dark:border-gray-700 p-5 z-20">
+        <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 mb-3 font-mono">
+          <span id="q-meta" class="font-semibold bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Unit 0 • Loading...</span>
+          <span id="q-diff" class="uppercase tracking-widest font-bold"></span>
         </div>
-        <div id="q-prompt" class="text-lg font-medium text-center">Writing your first question...</div>
+        <div id="q-prompt" class="text-lg md:text-xl font-medium text-center leading-relaxed">
+          <i class="fa-solid fa-spinner fa-spin text-primary"></i> Contacting AI...
+        </div>
       </div>
 
-      <div class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 shadow-md rounded-lg flex flex-col p-2 space-y-3 z-10 border border-gray-200 dark:border-gray-700">
-        <button onclick="setTool('pen')" id="tool-pen" class="p-2 rounded bg-blue-100 dark:bg-blue-900 text-primary"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="setTool('eraser')" id="tool-eraser" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-eraser"></i></button>
-        <button onclick="setTool('pan')" id="tool-pan" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-hand"></i></button>
-        <hr class="border-gray-200 dark:border-gray-700">
-        <button onclick="zoomBoard(1.2)" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-        <button onclick="zoomBoard(0.8)" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-        <button onclick="resetView()" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fa-solid fa-expand"></i></button>
+      <div class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-xl rounded-xl flex flex-col p-2 space-y-2 z-20 border border-gray-200 dark:border-gray-700">
+        <button onclick="setTool('pen')" id="tool-pen" class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-primary transition-colors" title="Pen"><i class="fa-solid fa-pen"></i></button>
+        <button onclick="setTool('eraser')" id="tool-eraser" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Eraser"><i class="fa-solid fa-eraser"></i></button>
+        <button onclick="setTool('pan')" id="tool-pan" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Pan Canvas"><i class="fa-solid fa-hand"></i></button>
+        <hr class="border-gray-200 dark:border-gray-700 my-1">
+        <button onclick="zoomBoard(1.2)" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+        <button onclick="zoomBoard(0.8)" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+        <button onclick="resetView()" class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Reset View"><i class="fa-solid fa-expand"></i></button>
       </div>
 
-      <div id="board-container" class="flex-1 bg-gray-50 dark:bg-gray-900 w-full h-full relative">
+      <div id="board-container" class="flex-1 w-full h-full relative">
         <canvas id="grid-canvas" class="absolute inset-0 z-0"></canvas>
         <canvas id="drawing-canvas" class="absolute inset-0 z-10"></canvas>
         <div id="annotations-layer" class="absolute inset-0 z-20 pointer-events-none origin-top-left"></div>
       </div>
     </section>
 
-    <aside class="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col hidden lg:flex">
-      <div class="h-1/3 border-b border-gray-200 dark:border-gray-700 flex flex-col">
-        <div class="p-4 font-semibold border-b border-gray-200 dark:border-gray-700 flex justify-between">
-          <span>Questions</span>
-          <button onclick="abortPractice()" class="text-xs text-red-500 hover:underline">New Set</button>
+    <aside class="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col hidden lg:flex z-10 shadow-[-4px_0_24px_rgba(0,0,0,0.02)]">
+      <div class="h-2/5 border-b border-gray-200 dark:border-gray-700 flex flex-col">
+        <div class="p-4 font-semibold border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+          <span>Question Set</span>
+          <button onclick="abortPractice()" class="text-xs text-red-500 hover:text-red-700 hover:underline font-medium px-2 py-1 rounded transition-colors">Abort Set</button>
         </div>
-        <div id="q-navigator" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+        <div id="q-navigator" class="flex-1 overflow-y-auto p-3 space-y-1.5"></div>
       </div>
       
-      <div class="flex-1 p-6 flex flex-col">
-        <h3 class="font-semibold mb-4">Actions</h3>
-        <button onclick="getHint()" class="w-full mb-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 py-2 rounded font-medium transition-colors">
+      <div class="flex-1 p-5 flex flex-col bg-gray-50/50 dark:bg-gray-800/20">
+        <button onclick="getHint()" class="w-full mb-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm">
           <i class="fa-solid fa-lightbulb mr-2 text-yellow-500"></i> Get a Hint
         </button>
-        <button id="btn-submit" onclick="submitWork()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded font-bold shadow-md transition-colors disabled:opacity-50">
+        <button id="btn-submit" onclick="submitWork()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-lg font-bold shadow-md transition-colors disabled:opacity-50 text-sm">
           <i class="fa-solid fa-check-double mr-2"></i> Submit for Review
         </button>
         
         <div id="feedback-content" class="mt-6 flex-1 overflow-y-auto hidden">
-          <h4 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-2">AI Feedback</h4>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">AI Feedback</h4>
           <div id="feedback-text" class="text-sm space-y-4"></div>
         </div>
       </div>
@@ -127,22 +146,48 @@
 
   <script>
     /* ==========================================
-       CURRICULUM & INIT
+       CURRICULUM DATA (Full AP Calculus BC Units)
        ========================================== */
     const AP_CALCULUS_BC_UNITS = [
       {
-        number: 6, title: "Integration and Accumulation of Change", weight: "17-20%",
-        topics: [
-          { code: "6.9", title: "Integration by Parts" },
-          { code: "6.14", title: "Selecting Techniques for Antidifferentiation" }
-        ]
+        number: 1, title: "Limits and Continuity",
+        topics: [{ code: "1.2", title: "Defining Limits" }, { code: "1.15", title: "Squeeze Theorem" }]
       },
       {
-        number: 10, title: "Infinite Sequences and Series", weight: "17-18%",
-        topics: [
-          { code: "10.11", title: "Finding Taylor Polynomial Approximations of Functions" },
-          { code: "10.14", title: "Finding Taylor or Maclaurin Series for a Function" }
-        ]
+        number: 2, title: "Differentiation: Basics",
+        topics: [{ code: "2.1", title: "Rates of Change" }, { code: "2.8", title: "The Product Rule" }, { code: "2.9", title: "The Quotient Rule" }]
+      },
+      {
+        number: 3, title: "Differentiation: Composite & Implicit",
+        topics: [{ code: "3.1", title: "The Chain Rule" }, { code: "3.2", title: "Implicit Differentiation" }]
+      },
+      {
+        number: 4, title: "Contextual Applications of Diff.",
+        topics: [{ code: "4.4", title: "Related Rates" }, { code: "4.6", title: "Linear Approximation" }]
+      },
+      {
+        number: 5, title: "Analytical Applications of Diff.",
+        topics: [{ code: "5.1", title: "Mean Value Theorem" }, { code: "5.4", title: "Determining Extrema" }, { code: "5.7", title: "Optimization" }]
+      },
+      {
+        number: 6, title: "Integration and Accumulation",
+        topics: [{ code: "6.2", title: "Riemann Sums" }, { code: "6.9", title: "Integration by Parts" }, { code: "6.10", title: "Partial Fractions" }]
+      },
+      {
+        number: 7, title: "Differential Equations",
+        topics: [{ code: "7.3", title: "Slope Fields" }, { code: "7.7", title: "Solving Separable Diff Eq" }, { code: "7.9", title: "Logistic Models" }]
+      },
+      {
+        number: 8, title: "Applications of Integration",
+        topics: [{ code: "8.1", title: "Area Between Curves" }, { code: "8.9", title: "Volume with Cross Sections" }]
+      },
+      {
+        number: 9, title: "Parametric, Polar, and Vectors",
+        topics: [{ code: "9.2", title: "Derivatives of Parametric Eq" }, { code: "9.7", title: "Area of a Polar Region" }]
+      },
+      {
+        number: 10, title: "Infinite Sequences and Series",
+        topics: [{ code: "10.5", title: "Harmonic and p-Series" }, { code: "10.8", title: "Ratio Test" }, { code: "10.11", title: "Taylor Polynomials" }]
       }
     ];
 
@@ -155,16 +200,17 @@
 
       const tree = document.getElementById('topic-tree');
       tree.innerHTML = AP_CALCULUS_BC_UNITS.map(u => `
-        <div class="border rounded p-3 dark:border-gray-700">
+        <div class="border rounded-lg p-3.5 bg-gray-50/50 dark:bg-gray-800/50 dark:border-gray-700 transition-colors">
           <div class="flex items-center font-bold mb-2">
-            <input type="checkbox" class="unit-cb mr-2" data-unit="${u.number}" onchange="toggleUnit(this)">
-            Unit ${u.number}: ${u.title} <span class="ml-auto text-xs font-normal text-gray-500">${u.weight}</span>
+            <input type="checkbox" class="unit-cb mr-3 w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary" data-unit="${u.number}" onchange="toggleUnit(this)">
+            <span class="text-[15px]">Unit ${u.number}: ${u.title}</span>
           </div>
-          <div class="pl-6 space-y-1">
+          <div class="pl-7 space-y-1.5 border-l-2 border-gray-200 dark:border-gray-700 ml-2 mt-2">
             ${u.topics.map(t => `
-              <label class="flex items-center text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded">
-                <input type="checkbox" class="topic-cb mr-2" value="${t.code}" data-unit="${u.number}" onchange="updateSelection()">
-                ${t.code} — ${t.title}
+              <label class="flex items-center text-sm cursor-pointer hover:bg-gray-200/50 dark:hover:bg-gray-700/50 p-1.5 rounded transition-colors">
+                <input type="checkbox" class="topic-cb mr-3 w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary" value="${t.code}" data-unit="${u.number}" onchange="updateSelection()">
+                <span class="font-mono text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded mr-2">${t.code}</span>
+                ${t.title}
               </label>
             `).join('')}
           </div>
@@ -180,7 +226,8 @@
 
     function updateSelection() {
       selectedTopics = Array.from(document.querySelectorAll('.topic-cb:checked')).map(cb => cb.value);
-      document.getElementById('btn-generate').disabled = selectedTopics.length === 0;
+      const btn = document.getElementById('btn-generate');
+      btn.disabled = selectedTopics.length === 0;
     }
 
     /* ==========================================
@@ -192,16 +239,24 @@
       return key;
     }
 
+    // Safely parse JSON even if the LLM wraps it in markdown blocks
+    function parseLLMJSON(rawText) {
+      try {
+        const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanText);
+      } catch (e) {
+        throw new Error("AI returned unparseable formatting. Please try again.");
+      }
+    }
+
     async function callGeminiAPI(prompt, base64Image = null) {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error("API Key is missing!");
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-      
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
       const contents = [{ parts: [{ text: prompt }] }];
       
       if (base64Image) {
-        // Strip the data URL prefix to get raw base64
         const base64Data = base64Image.split(',')[1];
         contents[0].parts.push({
           inlineData: { mimeType: "image/jpeg", data: base64Data }
@@ -213,27 +268,34 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: contents,
-          generationConfig: { responseMimeType: "application/json" }
+          generationConfig: { 
+            responseMimeType: "application/json",
+            temperature: 0.2
+          }
         })
       });
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error?.message || "API request failed");
+        throw new Error(`${err.error?.message || response.statusText}`);
       }
 
       const data = await response.json();
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error("AI returned an empty response.");
+      }
+      
       const rawText = data.candidates[0].content.parts[0].text;
-      return JSON.parse(rawText);
+      return parseLLMJSON(rawText);
     }
 
     async function generateSingleQuestion(topicCode, difficulty) {
       const prompt = `You are an expert AP Calculus BC teacher. Write ONE free-response style question for College Board CED Topic ${topicCode}. 
       Difficulty should be: ${difficulty}. 
-      Return strictly a JSON object with this schema:
+      Return strictly a JSON object with this exact schema. DO NOT include markdown tags:
       {
         "prompt": "The math problem text (plain text, no latex)",
-        "unit": number,
+        "unit": ${topicCode.split('.')[0]},
         "topic_code": "${topicCode}",
         "difficulty": "${difficulty}",
         "solution": "Step by step solution in plain text"
@@ -244,16 +306,16 @@
     async function reviewWorkAPI(question, base64Image) {
       const prompt = `You are an AP Calculus BC grader. Review the student's handwritten work in the provided image for this question: "${question.prompt}".
       The correct solution should be: "${question.solution}".
-      Find any errors in their logic, arithmetic, or calculus. 
-      Return strictly a JSON object with this schema:
+      Find any errors in logic, arithmetic, or calculus. 
+      Return strictly a JSON object with this exact schema. DO NOT include markdown tags:
       {
         "correct": boolean,
         "feedback": "2-3 sentences of encouraging but direct feedback pointing out specific errors or praising correct methodology.",
         "annotations": [
-          { "text": "Short note about the error (e.g. 'forgot +C' or 'sign error')", "x": number (0-100 percentage of width where error is), "y": number (0-100 percentage of height where error is) }
+          { "text": "Short note about error", "x": (number 0-100 percentage of width), "y": (number 0-100 percentage of height) }
         ]
       }
-      If the work is completely correct, the annotations array should be empty.`;
+      If completely correct, leave annotations empty.`;
       
       return await callGeminiAPI(prompt, base64Image);
     }
@@ -275,7 +337,7 @@
 
     async function startPractice() {
       if (!getApiKey()) {
-        alert("Please enter your Gemini API key first.");
+        alert("Please enter a valid Google Gemini API key first.");
         return;
       }
       
@@ -310,12 +372,10 @@
           updateNavigator();
           if (i === 0) loadQuestion(0);
         } catch (error) {
-          console.error("Failed to generate question:", error);
-          if (i === 0) {
-            alert("Failed to generate the first question. Check your API key and quota.");
-            abortPractice();
-            return;
-          }
+          console.error("AI Generation Error:", error);
+          alert(`API Error Generating Question:\n\n${error.message}\n\nPlease check your API key, network, or quota.`);
+          if (i === 0) abortPractice();
+          break; // Halt background generation if API fails
         }
       }
       
@@ -326,15 +386,18 @@
       backgroundGenActive = false;
       document.getElementById('practice-view').classList.add('hidden');
       document.getElementById('setup-view').classList.remove('hidden');
+      ctx.clearRect(0,0, drawCanvas.width, drawCanvas.height); // clear board
     }
 
     function loadQuestion(index) {
       currentIdx = index;
       const q = problemSet.questions[index];
       
+      if (!q) return;
+
       document.getElementById('q-meta').innerText = `Unit ${q.unit} • ${q.topic_code}`;
       document.getElementById('q-diff').innerText = q.difficulty;
-      document.getElementById('q-diff').className = `uppercase tracking-wider font-bold ${q.difficulty === 'hard' ? 'text-red-500' : q.difficulty === 'medium' ? 'text-yellow-500' : 'text-green-500'}`;
+      document.getElementById('q-diff').className = `uppercase tracking-widest text-[10px] font-bold px-2 py-1 rounded bg-opacity-20 ${q.difficulty === 'hard' ? 'text-red-600 bg-red-100' : q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-100' : 'text-green-600 bg-green-100'}`;
       document.getElementById('q-prompt').innerText = q.prompt;
 
       strokes = workByIndex[index]?.strokes || [];
@@ -360,12 +423,15 @@
         const isReady = !!q;
         const work = workByIndex[i];
         const statusIcon = !isReady ? '<i class="fa-solid fa-spinner fa-spin text-gray-400"></i>' : 
-                           work?.feedback ? (work.feedback.correct ? '<i class="fa-solid fa-check text-green-500"></i>' : '<i class="fa-solid fa-xmark text-red-500"></i>') :
-                           '<i class="fa-regular fa-circle text-gray-300"></i>';
+                           work?.feedback ? (work.feedback.correct ? '<i class="fa-solid fa-circle-check text-green-500 text-lg"></i>' : '<i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i>') :
+                           '<i class="fa-regular fa-circle text-gray-300 text-lg"></i>';
                            
         return `
-          <button onclick="selectQuestion(${i})" class="w-full text-left p-2 rounded flex items-center justify-between ${isCurrent ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} ${!isReady ? 'opacity-50 cursor-not-allowed' : ''}" ${!isReady ? 'disabled' : ''}>
-            <span class="text-sm font-medium">Q${i+1} ${q ? `<span class="text-xs text-gray-500 ml-2">${q.topic_code}</span>` : ''}</span>
+          <button onclick="selectQuestion(${i})" class="w-full text-left p-3 rounded-lg flex items-center justify-between border ${isCurrent ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 shadow-sm' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50'} ${!isReady ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}" ${!isReady ? 'disabled' : ''}>
+            <div class="flex flex-col">
+              <span class="text-sm font-bold">Question ${i+1}</span>
+              ${q ? `<span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">${q.topic_code}</span>` : ''}
+            </div>
             ${statusIcon}
           </button>
         `;
@@ -382,7 +448,7 @@
       isReviewing = true;
       if (workByIndex[currentIdx]) workByIndex[currentIdx].strokes = [...strokes];
       
-      // Export canvas state as a base64 JPEG for the AI
+      // Export canvas state as a base64 JPEG with a white background for the AI Vision
       const exportCanvas = document.createElement('canvas');
       exportCanvas.width = drawCanvas.width;
       exportCanvas.height = drawCanvas.height;
@@ -394,14 +460,12 @@
       
       try {
         const result = await reviewWorkAPI(problemSet.questions[currentIdx], base64Image);
-        
-        // Include the official solution text in the feedback UI for the user to compare
         result.official_solution = problemSet.questions[currentIdx].solution;
         workByIndex[currentIdx].feedback = result;
         showFeedbackUI(result);
       } catch (error) {
-        console.error(error);
-        alert("Failed to review work. Error: " + error.message);
+        console.error("Vision API Error:", error);
+        alert(`Failed to review work:\n\n${error.message}`);
       }
       
       isReviewing = false;
@@ -414,4 +478,238 @@
     function showFeedbackUI(feedback) {
       document.getElementById('feedback-content').classList.remove('hidden');
       document.getElementById('feedback-text').innerHTML = `
-        <div class="p-3 rounded ${feedback.correct ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'b
+        <div class="p-3.5 rounded-lg border ${feedback.correct ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-900 dark:text-green-300' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-900 dark:text-red-300'} font-medium flex items-center shadow-sm">
+          <i class="${feedback.correct ? 'fa-solid fa-award' : 'fa-solid fa-triangle-exclamation'} text-xl mr-3"></i>
+          <span>${feedback.correct ? 'Excellent Work!' : 'Needs Revision'}</span>
+        </div>
+        <p class="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-300">${feedback.feedback}</p>
+        <div class="mt-5 p-4 bg-gray-100 dark:bg-gray-700/50 rounded-lg text-sm border border-gray-200 dark:border-gray-600 shadow-inner">
+          <div class="font-bold text-gray-800 dark:text-gray-200 mb-2 flex items-center">
+            <i class="fa-solid fa-book-open mr-2 text-primary"></i> Official Solution
+          </div>
+          <div class="text-gray-600 dark:text-gray-400 font-serif leading-relaxed">${feedback.official_solution || "N/A"}</div>
+        </div>
+      `;
+      renderAnnotations(feedback.annotations);
+    }
+
+    function hideFeedbackUI() {
+      document.getElementById('feedback-content').classList.add('hidden');
+      document.getElementById('annotations-layer').innerHTML = '';
+    }
+
+    function getHint() {
+       if(!problemSet.questions[currentIdx]) return;
+       // Simply slice the solution to act as a naive hint
+       const fullSol = problemSet.questions[currentIdx].solution;
+       alert("Hint: " + fullSol.substring(0, Math.max(50, fullSol.length / 3)) + "...");
+    }
+
+    /* ==========================================
+       DRAWING BOARD (High-DPI, Pan, Zoom)
+       ========================================== */
+    const container = document.getElementById('board-container');
+    const drawCanvas = document.getElementById('drawing-canvas');
+    const gridCanvas = document.getElementById('grid-canvas');
+    const ctx = drawCanvas.getContext('2d');
+    const gCtx = gridCanvas.getContext('2d');
+    const annotationsLayer = document.getElementById('annotations-layer');
+
+    let view = { x: 0, y: 0, scale: 1 };
+    let currentTool = 'pen';
+    let isDrawing = false, isPanning = false;
+    let lastPos = { x: 0, y: 0 };
+    let strokes = []; 
+    let currentStroke = null;
+
+    function resizeCanvas() {
+      const rect = container.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      [drawCanvas, gridCanvas].forEach(c => {
+        c.width = rect.width * dpr;
+        c.height = rect.height * dpr;
+        c.style.width = `${rect.width}px`;
+        c.style.height = `${rect.height}px`;
+      });
+      
+      ctx.scale(dpr, dpr);
+      gCtx.scale(dpr, dpr);
+      redraw();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function screenToWorld(sx, sy) {
+      const rect = drawCanvas.getBoundingClientRect();
+      return {
+        x: (sx - rect.left - view.x) / view.scale,
+        y: (sy - rect.top - view.y) / view.scale
+      };
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('#tool-pen, #tool-eraser, #tool-pan').forEach(b => b.classList.remove('bg-blue-100', 'dark:bg-blue-900/50', 'text-primary'));
+      document.getElementById(`tool-${tool}`).classList.add('bg-blue-100', 'dark:bg-blue-900/50', 'text-primary');
+      container.className = `flex-1 w-full h-full relative ${tool === 'pan' ? 'pan-mode' : ''}`;
+    }
+
+    function resetView() {
+      view = { x: 0, y: 0, scale: 1 };
+      redraw();
+    }
+
+    function zoomBoard(factor) {
+      const rect = container.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      
+      view.x = cx - (cx - view.x) * factor;
+      view.y = cy - (cy - view.y) * factor;
+      view.scale *= factor;
+      redraw();
+    }
+
+    container.addEventListener('pointerdown', e => {
+      const pos = { x: e.clientX, y: e.clientY };
+      if (currentTool === 'pan' || e.button === 1 || (e.touches && e.touches.length > 1)) {
+        isPanning = true;
+        lastPos = pos;
+      } else {
+        isDrawing = true;
+        const wPos = screenToWorld(pos.x, pos.y);
+        currentStroke = { tool: currentTool, points: [wPos] };
+        strokes.push(currentStroke);
+      }
+    });
+
+    container.addEventListener('pointermove', e => {
+      const pos = { x: e.clientX, y: e.clientY };
+      if (isPanning) {
+        view.x += (pos.x - lastPos.x);
+        view.y += (pos.y - lastPos.y);
+        lastPos = pos;
+        redraw();
+      } else if (isDrawing && currentStroke) {
+        const wPos = screenToWorld(pos.x, pos.y);
+        currentStroke.points.push(wPos);
+        renderStroke(currentStroke, ctx);
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDrawing = false;
+      isPanning = false;
+      currentStroke = null;
+      redraw(); 
+    });
+
+    container.addEventListener('wheel', e => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const factor = e.deltaY > 0 ? 0.9 : 1.1;
+        const pos = { x: e.clientX, y: e.clientY };
+        const rect = container.getBoundingClientRect();
+        const sx = pos.x - rect.left;
+        const sy = pos.y - rect.top;
+        
+        view.x = sx - (sx - view.x) * factor;
+        view.y = sy - (sy - view.y) * factor;
+        view.scale *= factor;
+        redraw();
+      }
+    }, { passive: false });
+
+    function renderStroke(stroke, context) {
+      if (stroke.points.length < 2) return;
+      context.beginPath();
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      
+      if (stroke.tool === 'eraser') {
+        context.globalCompositeOperation = 'destination-out';
+        context.lineWidth = 25 / view.scale; 
+      } else {
+        context.globalCompositeOperation = 'source-over';
+        context.lineWidth = 3 / view.scale;
+        context.strokeStyle = document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#111827';
+      }
+
+      context.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length - 1; i++) {
+        const xc = (stroke.points[i].x + stroke.points[i + 1].x) / 2;
+        const yc = (stroke.points[i].y + stroke.points[i + 1].y) / 2;
+        context.quadraticCurveTo(stroke.points[i].x, stroke.points[i].y, xc, yc);
+      }
+      const last = stroke.points[stroke.points.length - 1];
+      context.lineTo(last.x, last.y);
+      context.stroke();
+    }
+
+    function redraw() {
+      const rect = container.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      gCtx.clearRect(0, 0, rect.width, rect.height);
+      
+      gCtx.save();
+      gCtx.translate(view.x, view.y);
+      gCtx.scale(view.scale, view.scale);
+      
+      const gridSize = 50;
+      gCtx.strokeStyle = document.documentElement.classList.contains('dark') ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+      gCtx.lineWidth = 1 / view.scale;
+      
+      const startX = -view.x / view.scale;
+      const endX = startX + rect.width / view.scale;
+      const startY = -view.y / view.scale;
+      const endY = startY + rect.height / view.scale;
+      
+      gCtx.beginPath();
+      for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
+        gCtx.moveTo(x, startY); gCtx.lineTo(x, endY);
+      }
+      for (let y = Math.floor(startY / gridSize) * gridSize; y < endY; y += gridSize) {
+        gCtx.moveTo(startX, y); gCtx.lineTo(endX, y);
+      }
+      gCtx.stroke();
+      gCtx.restore();
+
+      ctx.save();
+      ctx.translate(view.x, view.y);
+      ctx.scale(view.scale, view.scale);
+      strokes.forEach(s => renderStroke(s, ctx));
+      ctx.restore();
+
+      annotationsLayer.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+    }
+
+    function renderAnnotations(annotations) {
+      if (!annotations || !Array.isArray(annotations)) return;
+      const rect = container.getBoundingClientRect();
+      
+      annotationsLayer.innerHTML = annotations.map(a => `
+        <div class="annotation bg-yellow-100 text-yellow-900 text-xs font-bold px-2.5 py-1.5 rounded-md shadow-md border border-yellow-300 flex items-center whitespace-nowrap" 
+             style="left: ${rect.width * (a.x / 100)}px; top: ${rect.height * (a.y / 100)}px;">
+          <i class="fa-solid fa-arrow-pointer mr-1.5 opacity-70"></i>${a.text}
+        </div>
+      `).join('');
+    }
+
+    function toggleTheme() {
+      document.documentElement.classList.toggle('dark');
+      redraw();
+    }
+
+    window.onload = () => {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+      initSetup();
+      resizeCanvas();
+    };
+  </script>
+</body>
+</html>
+
+

@@ -19,7 +19,6 @@
     .pan-mode:active { cursor: grabbing !important; }
     .annotation { position: absolute; transform: translate(-50%, -100%); pointer-events: none; }
     
-    /* Custom scrollbar for better UI */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -70,8 +69,8 @@
 
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="w-full md:w-1/2">
-        <label class="block text-sm font-medium mb-3">Number of Questions: <span id="num-q-label" class="text-primary font-bold text-lg ml-1">3</span></label>
-        <input type="range" id="num-questions" min="1" max="10" value="3" class="w-full accent-primary" oninput="document.getElementById('num-q-label').innerText = this.value">
+        <label class="block text-sm font-medium mb-3">Number of Questions: <span id="num-q-label" class="text-primary font-bold text-lg ml-1">5</span></label>
+        <input type="range" id="num-questions" min="1" max="25" value="5" class="w-full accent-primary" oninput="document.getElementById('num-q-label').innerText = this.value">
       </div>
       <button onclick="startPractice()" id="btn-generate" disabled class="w-full md:w-auto bg-primary hover:bg-blue-700 text-white px-8 py-3.5 rounded-lg font-semibold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
         Generate Question Set
@@ -86,7 +85,7 @@
       </div>
       <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
         <div class="bg-gray-100 dark:bg-gray-700/50 p-3.5 rounded-xl rounded-tl-none border border-gray-200 dark:border-gray-600 shadow-sm">
-          Hello! I'm your AI tutor. Draw your steps clearly on the board, and I'll review them when you submit!
+          Hello! I'm generating your questions in the background. Start working on the ones that are ready, and draw your steps clearly!
         </div>
       </div>
     </aside>
@@ -98,7 +97,7 @@
           <span id="q-diff" class="uppercase tracking-widest font-bold"></span>
         </div>
         <div id="q-prompt" class="text-lg md:text-xl font-medium text-center leading-relaxed">
-          <i class="fa-solid fa-spinner fa-spin text-primary"></i> Contacting AI...
+          <i class="fa-solid fa-spinner fa-spin text-primary"></i> Queuing question from AI...
         </div>
       </div>
 
@@ -129,10 +128,10 @@
       </div>
       
       <div class="flex-1 p-5 flex flex-col bg-gray-50/50 dark:bg-gray-800/20">
-        <button onclick="getHint()" class="w-full mb-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm">
+        <button id="btn-hint" onclick="getHint()" disabled class="w-full mb-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm disabled:opacity-50">
           <i class="fa-solid fa-lightbulb mr-2 text-yellow-500"></i> Get a Hint
         </button>
-        <button id="btn-submit" onclick="submitWork()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-lg font-bold shadow-md transition-colors disabled:opacity-50 text-sm">
+        <button id="btn-submit" onclick="submitWork()" disabled class="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-lg font-bold shadow-md transition-colors disabled:opacity-50 text-sm">
           <i class="fa-solid fa-check-double mr-2"></i> Submit for Review
         </button>
         
@@ -146,55 +145,24 @@
 
   <script>
     /* ==========================================
-       CURRICULUM DATA (Full AP Calculus BC Units)
+       CURRICULUM DATA
        ========================================== */
     const AP_CALCULUS_BC_UNITS = [
-      {
-        number: 1, title: "Limits and Continuity",
-        topics: [{ code: "1.2", title: "Defining Limits" }, { code: "1.15", title: "Squeeze Theorem" }]
-      },
-      {
-        number: 2, title: "Differentiation: Basics",
-        topics: [{ code: "2.1", title: "Rates of Change" }, { code: "2.8", title: "The Product Rule" }, { code: "2.9", title: "The Quotient Rule" }]
-      },
-      {
-        number: 3, title: "Differentiation: Composite & Implicit",
-        topics: [{ code: "3.1", title: "The Chain Rule" }, { code: "3.2", title: "Implicit Differentiation" }]
-      },
-      {
-        number: 4, title: "Contextual Applications of Diff.",
-        topics: [{ code: "4.4", title: "Related Rates" }, { code: "4.6", title: "Linear Approximation" }]
-      },
-      {
-        number: 5, title: "Analytical Applications of Diff.",
-        topics: [{ code: "5.1", title: "Mean Value Theorem" }, { code: "5.4", title: "Determining Extrema" }, { code: "5.7", title: "Optimization" }]
-      },
-      {
-        number: 6, title: "Integration and Accumulation",
-        topics: [{ code: "6.2", title: "Riemann Sums" }, { code: "6.9", title: "Integration by Parts" }, { code: "6.10", title: "Partial Fractions" }]
-      },
-      {
-        number: 7, title: "Differential Equations",
-        topics: [{ code: "7.3", title: "Slope Fields" }, { code: "7.7", title: "Solving Separable Diff Eq" }, { code: "7.9", title: "Logistic Models" }]
-      },
-      {
-        number: 8, title: "Applications of Integration",
-        topics: [{ code: "8.1", title: "Area Between Curves" }, { code: "8.9", title: "Volume with Cross Sections" }]
-      },
-      {
-        number: 9, title: "Parametric, Polar, and Vectors",
-        topics: [{ code: "9.2", title: "Derivatives of Parametric Eq" }, { code: "9.7", title: "Area of a Polar Region" }]
-      },
-      {
-        number: 10, title: "Infinite Sequences and Series",
-        topics: [{ code: "10.5", title: "Harmonic and p-Series" }, { code: "10.8", title: "Ratio Test" }, { code: "10.11", title: "Taylor Polynomials" }]
-      }
+      { number: 1, title: "Limits and Continuity", topics: [{ code: "1.2", title: "Defining Limits" }, { code: "1.15", title: "Squeeze Theorem" }] },
+      { number: 2, title: "Differentiation: Basics", topics: [{ code: "2.1", title: "Rates of Change" }, { code: "2.8", title: "The Product Rule" }, { code: "2.9", title: "The Quotient Rule" }] },
+      { number: 3, title: "Differentiation: Composite & Implicit", topics: [{ code: "3.1", title: "The Chain Rule" }, { code: "3.2", title: "Implicit Differentiation" }] },
+      { number: 4, title: "Contextual Applications of Diff.", topics: [{ code: "4.4", title: "Related Rates" }, { code: "4.6", title: "Linear Approximation" }] },
+      { number: 5, title: "Analytical Applications of Diff.", topics: [{ code: "5.1", title: "Mean Value Theorem" }, { code: "5.4", title: "Determining Extrema" }, { code: "5.7", title: "Optimization" }] },
+      { number: 6, title: "Integration and Accumulation", topics: [{ code: "6.2", title: "Riemann Sums" }, { code: "6.9", title: "Integration by Parts" }, { code: "6.10", title: "Partial Fractions" }] },
+      { number: 7, title: "Differential Equations", topics: [{ code: "7.3", title: "Slope Fields" }, { code: "7.7", title: "Solving Separable Diff Eq" }, { code: "7.9", title: "Logistic Models" }] },
+      { number: 8, title: "Applications of Integration", topics: [{ code: "8.1", title: "Area Between Curves" }, { code: "8.9", title: "Volume with Cross Sections" }] },
+      { number: 9, title: "Parametric, Polar, and Vectors", topics: [{ code: "9.2", title: "Derivatives of Parametric Eq" }, { code: "9.7", title: "Area of a Polar Region" }] },
+      { number: 10, title: "Infinite Sequences and Series", topics: [{ code: "10.5", title: "Harmonic and p-Series" }, { code: "10.8", title: "Ratio Test" }, { code: "10.11", title: "Taylor Polynomials" }] }
     ];
 
     let selectedTopics = [];
 
     function initSetup() {
-      // Load saved API Key
       const savedKey = localStorage.getItem('gemini_api_key');
       if (savedKey) document.getElementById('api-key-input').value = savedKey;
 
@@ -231,7 +199,7 @@
     }
 
     /* ==========================================
-       REAL LLM INTEGRATION (Gemini REST API)
+       REAL LLM INTEGRATION (Gemini 1.5 Flash)
        ========================================== */
     function getApiKey() {
       const key = document.getElementById('api-key-input').value.trim();
@@ -239,13 +207,12 @@
       return key;
     }
 
-    // Safely parse JSON even if the LLM wraps it in markdown blocks
     function parseLLMJSON(rawText) {
       try {
         const cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         return JSON.parse(cleanText);
       } catch (e) {
-        throw new Error("AI returned unparseable formatting. Please try again.");
+        throw new Error("AI returned unparseable formatting.");
       }
     }
 
@@ -253,14 +220,13 @@
       const apiKey = getApiKey();
       if (!apiKey) throw new Error("API Key is missing!");
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+      // FIXED ENDPOINT TO STANDARD FLASH 1.5
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const contents = [{ parts: [{ text: prompt }] }];
       
       if (base64Image) {
         const base64Data = base64Image.split(',')[1];
-        contents[0].parts.push({
-          inlineData: { mimeType: "image/jpeg", data: base64Data }
-        });
+        contents[0].parts.push({ inlineData: { mimeType: "image/jpeg", data: base64Data } });
       }
 
       const response = await fetch(url, {
@@ -268,10 +234,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: contents,
-          generationConfig: { 
-            responseMimeType: "application/json",
-            temperature: 0.2
-          }
+          generationConfig: { responseMimeType: "application/json", temperature: 0.2 }
         })
       });
 
@@ -281,12 +244,8 @@
       }
 
       const data = await response.json();
-      if (!data.candidates || data.candidates.length === 0) {
-        throw new Error("AI returned an empty response.");
-      }
-      
-      const rawText = data.candidates[0].content.parts[0].text;
-      return parseLLMJSON(rawText);
+      if (!data.candidates || data.candidates.length === 0) throw new Error("AI returned an empty response.");
+      return parseLLMJSON(data.candidates[0].content.parts[0].text);
     }
 
     async function generateSingleQuestion(topicCode, difficulty) {
@@ -314,26 +273,18 @@
         "annotations": [
           { "text": "Short note about error", "x": (number 0-100 percentage of width), "y": (number 0-100 percentage of height) }
         ]
-      }
-      If completely correct, leave annotations empty.`;
-      
+      }`;
       return await callGeminiAPI(prompt, base64Image);
     }
 
     /* ==========================================
-       STATE & APP LOGIC
+       STATE & ASYNC QUEUE LOGIC
        ========================================== */
-    let problemSet = { questions: [] };
+    let problemSet = { num_questions: 0, questions: [] };
     let currentIdx = 0;
     let workByIndex = {}; 
     let backgroundGenActive = false;
     let isReviewing = false;
-
-    async function waitIfPaused() {
-      while (isReviewing || !backgroundGenActive) {
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
 
     async function startPractice() {
       if (!getApiKey()) {
@@ -345,40 +296,56 @@
       document.getElementById('setup-view').classList.add('hidden');
       document.getElementById('practice-view').classList.remove('hidden');
       
-      problemSet = { num_questions: numQuestions, questions: [] };
+      // Initialize state with null arrays to represent queued questions
+      problemSet = { num_questions: numQuestions, questions: Array(numQuestions).fill(null) };
       currentIdx = 0;
       workByIndex = {};
+      for (let i = 0; i < numQuestions; i++) {
+        workByIndex[i] = { strokes: [], feedback: null };
+      }
       strokes = []; 
+      
       backgroundGenActive = true;
       isReviewing = false;
+      document.getElementById('status-indicator').classList.remove('hidden');
       
       updateNavigator();
-      document.getElementById('status-indicator').classList.remove('hidden');
+      loadQuestion(0); // This will show the loading state initially
+      
+      // Fire off background queue
+      generateQueue(numQuestions);
+    }
 
-      for (let i = 0; i < numQuestions; i++) {
-        if (!backgroundGenActive) break;
-        await waitIfPaused();
-        
-        document.getElementById('status-text').innerText = `Writing question ${i+1} of ${numQuestions}...`;
-        
+    async function generateQueue(total) {
+      let successCount = 0;
+      for (let i = 0; i < total; i++) {
+        if (!backgroundGenActive) break; // abort if user exited
+
+        document.getElementById('status-text').innerText = `Writing question ${i+1} of ${total}...`;
         const topic = selectedTopics[i % selectedTopics.length];
         const difficulties = ["easy", "medium", "hard"];
         
         try {
           const q = await generateSingleQuestion(topic, difficulties[i % 3]);
-          problemSet.questions.push(q);
-          workByIndex[i] = { strokes: [], feedback: null };
+          if (!backgroundGenActive) break; // double check before applying
+          
+          problemSet.questions[i] = q;
+          successCount++;
           
           updateNavigator();
-          if (i === 0) loadQuestion(0);
+          
+          // If the user is currently staring at this loading question, render it immediately!
+          if (currentIdx === i) loadQuestion(i);
+          
         } catch (error) {
-          console.error("AI Generation Error:", error);
-          alert(`API Error Generating Question:\n\n${error.message}\n\nPlease check your API key, network, or quota.`);
-          if (i === 0) abortPractice();
-          break; // Halt background generation if API fails
+          console.error(`AI Error on Q${i+1}:`, error);
+          if (i === 0) {
+            alert(`API Error Generating First Question:\n\n${error.message}\n\nPlease check your API key.`);
+            abortPractice();
+            return;
+          }
         }
       }
-      
       document.getElementById('status-indicator').classList.add('hidden');
     }
 
@@ -386,31 +353,42 @@
       backgroundGenActive = false;
       document.getElementById('practice-view').classList.add('hidden');
       document.getElementById('setup-view').classList.remove('hidden');
-      ctx.clearRect(0,0, drawCanvas.width, drawCanvas.height); // clear board
+      ctx.clearRect(0,0, drawCanvas.width, drawCanvas.height); 
     }
 
     function loadQuestion(index) {
       currentIdx = index;
       const q = problemSet.questions[index];
       
-      if (!q) return;
+      // Update UI buttons based on readiness
+      const isReady = !!q;
+      document.getElementById('btn-submit').disabled = !isReady;
+      document.getElementById('btn-hint').disabled = !isReady;
 
-      document.getElementById('q-meta').innerText = `Unit ${q.unit} • ${q.topic_code}`;
-      document.getElementById('q-diff').innerText = q.difficulty;
-      document.getElementById('q-diff').className = `uppercase tracking-widest text-[10px] font-bold px-2 py-1 rounded bg-opacity-20 ${q.difficulty === 'hard' ? 'text-red-600 bg-red-100' : q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-100' : 'text-green-600 bg-green-100'}`;
-      document.getElementById('q-prompt').innerText = q.prompt;
+      if (!isReady) {
+        document.getElementById('q-meta').innerText = `Queued`;
+        document.getElementById('q-diff').innerText = `WAITING`;
+        document.getElementById('q-diff').className = `uppercase tracking-widest text-[10px] font-bold px-2 py-1 rounded bg-gray-200 text-gray-500`;
+        document.getElementById('q-prompt').innerHTML = `<i class="fa-solid fa-spinner fa-spin text-primary mr-2"></i> Generating in background...`;
+        hideFeedbackUI();
+        strokes = [];
+      } else {
+        document.getElementById('q-meta').innerText = `Unit ${q.unit} • ${q.topic_code}`;
+        document.getElementById('q-diff').innerText = q.difficulty;
+        document.getElementById('q-diff').className = `uppercase tracking-widest text-[10px] font-bold px-2 py-1 rounded bg-opacity-20 ${q.difficulty === 'hard' ? 'text-red-600 bg-red-100' : q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-100' : 'text-green-600 bg-green-100'}`;
+        document.getElementById('q-prompt').innerText = q.prompt;
 
-      strokes = workByIndex[index]?.strokes || [];
-      const feedback = workByIndex[index]?.feedback;
-      
-      feedback ? showFeedbackUI(feedback) : hideFeedbackUI();
+        strokes = workByIndex[index]?.strokes || [];
+        const feedback = workByIndex[index]?.feedback;
+        feedback ? showFeedbackUI(feedback) : hideFeedbackUI();
+      }
       
       resetView();
       updateNavigator();
     }
 
     function selectQuestion(index) {
-      if (index >= problemSet.questions.length) return;
+      if (index >= problemSet.num_questions) return;
       if (workByIndex[currentIdx]) workByIndex[currentIdx].strokes = [...strokes];
       loadQuestion(index);
     }
@@ -422,15 +400,21 @@
         const isCurrent = i === currentIdx;
         const isReady = !!q;
         const work = workByIndex[i];
-        const statusIcon = !isReady ? '<i class="fa-solid fa-spinner fa-spin text-gray-400"></i>' : 
-                           work?.feedback ? (work.feedback.correct ? '<i class="fa-solid fa-circle-check text-green-500 text-lg"></i>' : '<i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i>') :
-                           '<i class="fa-regular fa-circle text-gray-300 text-lg"></i>';
+        
+        let statusIcon;
+        if (!isReady) {
+          statusIcon = '<i class="fa-solid fa-hourglass-half text-gray-400 text-sm"></i>';
+        } else if (work?.feedback) {
+          statusIcon = work.feedback.correct ? '<i class="fa-solid fa-circle-check text-green-500 text-lg"></i>' : '<i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i>';
+        } else {
+          statusIcon = '<i class="fa-regular fa-circle text-gray-300 text-lg"></i>';
+        }
                            
         return `
-          <button onclick="selectQuestion(${i})" class="w-full text-left p-3 rounded-lg flex items-center justify-between border ${isCurrent ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 shadow-sm' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50'} ${!isReady ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}" ${!isReady ? 'disabled' : ''}>
+          <button onclick="selectQuestion(${i})" class="w-full text-left p-3 rounded-lg flex items-center justify-between border ${isCurrent ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 shadow-sm' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-700/50'} transition-colors">
             <div class="flex flex-col">
-              <span class="text-sm font-bold">Question ${i+1}</span>
-              ${q ? `<span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">${q.topic_code}</span>` : ''}
+              <span class="text-sm font-bold ${!isReady ? 'text-gray-400' : ''}">Question ${i+1}</span>
+              ${q ? `<span class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">${q.topic_code}</span>` : '<span class="text-[10px] text-gray-400 mt-0.5">Generating...</span>'}
             </div>
             ${statusIcon}
           </button>
@@ -448,7 +432,6 @@
       isReviewing = true;
       if (workByIndex[currentIdx]) workByIndex[currentIdx].strokes = [...strokes];
       
-      // Export canvas state as a base64 JPEG with a white background for the AI Vision
       const exportCanvas = document.createElement('canvas');
       exportCanvas.width = drawCanvas.width;
       exportCanvas.height = drawCanvas.height;
@@ -464,13 +447,11 @@
         workByIndex[currentIdx].feedback = result;
         showFeedbackUI(result);
       } catch (error) {
-        console.error("Vision API Error:", error);
         alert(`Failed to review work:\n\n${error.message}`);
       }
       
       isReviewing = false;
       updateNavigator();
-      
       btn.innerHTML = '<i class="fa-solid fa-check-double mr-2"></i> Submit for Review';
       btn.disabled = false;
     }
@@ -500,7 +481,6 @@
 
     function getHint() {
        if(!problemSet.questions[currentIdx]) return;
-       // Simply slice the solution to act as a naive hint
        const fullSol = problemSet.questions[currentIdx].solution;
        alert("Hint: " + fullSol.substring(0, Math.max(50, fullSol.length / 3)) + "...");
     }
